@@ -1,0 +1,19 @@
+{
+  "name": "mochi-kids-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Backend for Mochi Kids: keeps API keys off the phone and checks every request is child-safe.",
+  "type": "module",
+  "main": "index.js",
+  "engines": {
+    "node": ">=20.6"
+  },
+  "scripts": {
+    "dev": "node --watch --env-file=.env index.js",
+    "start": "node --env-file=.env index.js"
+  },
+  "dependencies": {
+    "express": "^5.3.0",
+    "openai": "^7.53.0"
+  }
+}

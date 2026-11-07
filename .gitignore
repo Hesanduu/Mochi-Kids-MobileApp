@@ -41,3 +41,14 @@ example
 # generated native folders
 /ios
 /android
+
+
+.claude/
+
+.env
+CLAUDE.md
+
+
+// Local Only files
+.designs/
+design/
