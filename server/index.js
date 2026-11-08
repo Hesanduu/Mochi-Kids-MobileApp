@@ -3,13 +3,39 @@
 // Run with: npm run dev   (reads keys from server/.env)
 import express from 'express';
 
-import { drawPicture, planLesson } from './ai.js';
+import { checkSpeech, drawPicture, planLesson } from './ai.js';
 import { rateLimit } from './rateLimit.js';
 import { requireLogin } from './requireLogin.js';
 import { checkLessonTopic, checkRequest, GENTLE_NO, lessonHasBlockedWord, LESSON_NO } from './safety.js';
 
 const app = express();
-app.use(express.json({ limit: '2kb' })); // requests are just a short text
+
+// ---------- Check how a child said a word ----------
+// This route comes before the small size limit below, because it carries a short
+// voice clip. The login check runs first, so strangers can't send large files.
+// The clip is never saved, and the result is the only thing sent back.
+app.post(
+  '/api/speech/check',
+  requireLogin,
+  rateLimit({ max: 200 }),
+  express.json({ limit: '1mb' }),
+  async (req, res) => {
+    const word = req.body?.word;
+    const audioBase64 = req.body?.audioBase64;
+    if (typeof word !== 'string' || !/^[a-z][a-z ]{1,23}$/.test(word) || typeof audioBase64 !== 'string' || !audioBase64) {
+      return res.status(400).json({ error: 'Something went wrong. Please try again.' });
+    }
+
+    try {
+      res.json({ result: await checkSpeech(word, Buffer.from(audioBase64, 'base64')) });
+    } catch (err) {
+      console.error('Speech check failed:', err.status ?? err.code ?? 'unknown error');
+      res.status(502).json({ error: "Mochi couldn't listen right now. Please try again." });
+    }
+  },
+);
+
+app.use(express.json({ limit: '2kb' })); // other requests are just a short text
 
 // Quick "is the server running?" check. Open http://<laptop-ip>:3000/health on your phone.
 app.get('/health', (req, res) => res.json({ ok: true }));

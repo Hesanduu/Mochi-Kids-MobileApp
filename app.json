@@ -56,7 +56,14 @@
           ]
         }
       ],
-      "@react-native-google-signin/google-signin"
+      "@react-native-google-signin/google-signin",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Mochi Kids uses the microphone so your child can practise saying words with Mochi."
+        }
+      ],
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true,

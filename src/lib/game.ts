@@ -23,7 +23,7 @@ export function randomPraise() {
   return PRAISE[Math.floor(Math.random() * PRAISE.length)];
 }
 
-function shuffle<T>(list: T[]) {
+export function shuffle<T>(list: T[]) {
   const copy = [...list];
   for (let i = copy.length - 1; i > 0; i -= 1) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -46,8 +46,8 @@ export function starsForTry(tries: number) {
 }
 
 // Stars earned as a percentage of all the stars available in the lesson.
-export function scorePercent(results: PageResult[]) {
+export function scorePercent(results: { stars: number }[], maxStarsPerPage = MAX_STARS_PER_PAGE) {
   if (results.length === 0) return 0;
   const earned = results.reduce((total, page) => total + page.stars, 0);
-  return Math.round((earned / (results.length * MAX_STARS_PER_PAGE)) * 100);
+  return Math.round((earned / (results.length * maxStarsPerPage)) * 100);
 }

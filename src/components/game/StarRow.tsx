@@ -14,20 +14,22 @@ const POP_IN = {
 type StarRowProps = {
   stars: number;
   size: number;
+  // How many stars to show. Talk with Mochi uses 5.
+  total?: number;
   // Stars pop in one after another (used in the celebration).
   pop?: boolean;
 };
 
-export function StarRow({ stars, size, pop = false }: StarRowProps) {
+export function StarRow({ stars, size, total = MAX_STARS_PER_PAGE, pop = false }: StarRowProps) {
   const reducedMotion = useReducedMotion();
 
   return (
     <View
       style={styles.row}
       accessible
-      accessibilityLabel={`${stars} out of ${MAX_STARS_PER_PAGE} stars`}
+      accessibilityLabel={`${stars} out of ${total} stars`}
     >
-      {Array.from({ length: MAX_STARS_PER_PAGE }, (_, i) => (
+      {Array.from({ length: total }, (_, i) => (
         <Animated.View
           key={i}
           style={

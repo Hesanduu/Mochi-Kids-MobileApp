@@ -10,6 +10,8 @@ type ChildrenContextValue = {
   // The child who is playing now. Null only when no child has been added.
   selectedChild: Child | null;
   selectChild: (childId: string) => void;
+  // True once a parent has agreed to the voice check for Talk with Mochi.
+  voiceConsent: boolean;
   // True until the first answer from Firestore arrives.
   loading: boolean;
 };
@@ -19,7 +21,7 @@ const ChildrenContext = createContext<ChildrenContextValue | null>(null);
 // Each result remembers which parent it belongs to, so one parent's children
 // can never show for a moment after a different parent logs in.
 type ChildrenResult = { uid: string; list: Child[] };
-type SelectionResult = { uid: string; childId: string | null };
+type SelectionResult = { uid: string; childId: string | null; voiceConsent: boolean };
 
 export function ChildrenProvider({ children: content }: { children: ReactNode }) {
   const { user } = useAuth();
@@ -45,14 +47,20 @@ export function ChildrenProvider({ children: content }: { children: ReactNode })
     if (!uid) return;
     return onSnapshot(
       doc(db, 'parents', uid),
-      (snapshot) => setSelectionResult({ uid, childId: snapshot.data()?.selectedChildId ?? null }),
-      () => setSelectionResult({ uid, childId: null }),
+      (snapshot) =>
+        setSelectionResult({
+          uid,
+          childId: snapshot.data()?.selectedChildId ?? null,
+          voiceConsent: Boolean(snapshot.data()?.voiceConsentAt),
+        }),
+      () => setSelectionResult({ uid, childId: null, voiceConsent: false }),
     );
   }, [uid]);
 
   const isCurrent = uid !== undefined && childrenResult?.uid === uid && selectionResult?.uid === uid;
   const list = isCurrent ? childrenResult.list : [];
   const selectedId = isCurrent ? selectionResult.childId : null;
+  const voiceConsent = isCurrent ? selectionResult.voiceConsent : false;
 
   // The saved choice if that child exists, otherwise the first child.
   const selectedChild = list.find((child) => child.id === selectedId) ?? list[0] ?? null;
@@ -68,7 +76,7 @@ export function ChildrenProvider({ children: content }: { children: ReactNode })
   const loading = uid !== undefined && !isCurrent;
 
   return (
-    <ChildrenContext.Provider value={{ children: list, selectedChild, selectChild, loading }}>
+    <ChildrenContext.Provider value={{ children: list, selectedChild, selectChild, voiceConsent, loading }}>
       {content}
     </ChildrenContext.Provider>
   );

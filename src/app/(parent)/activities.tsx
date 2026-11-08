@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
@@ -7,20 +6,17 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ActivityCard } from '@/components/ActivityCard';
 import { ChunkyButton } from '@/components/ChunkyButton';
-import { colors, fonts, radius, TAP_TARGET } from '@/constants/theme';
-import { useAuth } from '@/context/AuthContext';
+import { SavedLessonTile } from '@/components/SavedLessonTile';
+import { colors, fonts, radius } from '@/constants/theme';
 import { useChildren } from '@/context/ChildrenContext';
 import { PRESET_LESSONS } from '@/data/lessons';
-import { errorMessage } from '@/lib/api';
-import { deleteSavedLesson, useSavedLessons, type SavedLessonSummary } from '@/lib/lessonStore';
+import { useSavedLessons } from '@/lib/lessonStore';
 
 // The library of lessons, plus the other things to do with Mochi.
 export default function ActivitiesScreen() {
   const insets = useSafeAreaInsets();
   const { selectedChild } = useChildren();
   const savedLessons = useSavedLessons();
-  const { user } = useAuth();
-  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const openLesson = (lessonId: string) => {
     if (!selectedChild) {
@@ -31,29 +27,6 @@ export default function ActivitiesScreen() {
       return;
     }
     router.push({ pathname: '/play/[lessonId]', params: { lessonId } });
-  };
-
-  const deleteLesson = async (lesson: SavedLessonSummary) => {
-    if (!user) return;
-    setDeletingId(lesson.id);
-    try {
-      await deleteSavedLesson(user.uid, lesson.id);
-    } catch (err) {
-      Alert.alert('Could not delete', errorMessage(err));
-    } finally {
-      setDeletingId(null);
-    }
-  };
-
-  const confirmDelete = (lesson: SavedLessonSummary) => {
-    Alert.alert(
-      `Delete ${lesson.title}?`,
-      'This removes the lesson, its pictures and every child\u2019s scores for it. This can\u2019t be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: () => deleteLesson(lesson) },
-      ],
-    );
   };
 
   return (
@@ -99,37 +72,7 @@ export default function ActivitiesScreen() {
         ))}
 
         {savedLessons.map((lesson) => (
-          <Pressable
-            key={lesson.id}
-            onPress={() => openLesson(lesson.id)}
-            accessibilityRole="button"
-            accessibilityLabel={`Play ${lesson.title}`}
-            style={({ pressed }) => [styles.tile, styles.aiTile, pressed && styles.tilePressed]}
-          >
-            <View style={styles.swatches}>
-              <SymbolView
-                name={{ ios: 'sparkles', android: 'auto_awesome', web: 'auto_awesome' }}
-                size={30}
-                tintColor={colors.primary}
-              />
-            </View>
-            <Text style={styles.tileTitle}>{lesson.title}</Text>
-            <Text style={styles.tileText}>{lesson.pageCount} pages · Made with AI</Text>
-
-            <Pressable
-              onPress={() => confirmDelete(lesson)}
-              disabled={deletingId !== null}
-              accessibilityRole="button"
-              accessibilityLabel={`Delete ${lesson.title}`}
-              style={styles.deleteButton}
-            >
-              {deletingId === lesson.id ? (
-                <ActivityIndicator color={colors.error} />
-              ) : (
-                <SymbolView name={{ ios: 'trash', android: 'delete', web: 'delete' }} size={20} tintColor={colors.error} />
-              )}
-            </Pressable>
-          </Pressable>
+          <SavedLessonTile key={lesson.id} lesson={lesson} kind="lessons" onPress={() => openLesson(lesson.id)} />
         ))}
       </View>
 
@@ -191,19 +134,6 @@ const styles = StyleSheet.create({
     borderColor: colors.yellow,
     justifyContent: 'flex-end',
     gap: 2,
-  },
-  aiTile: {
-    backgroundColor: colors.skySoft,
-    borderColor: colors.sky,
-  },
-  deleteButton: {
-    position: 'absolute',
-    top: 4,
-    right: 4,
-    width: TAP_TARGET,
-    height: TAP_TARGET,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   tilePressed: {
     transform: [{ scale: 0.97 }],

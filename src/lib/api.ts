@@ -114,6 +114,20 @@ export function generateLesson(topic: string) {
   );
 }
 
+export type SpeechResult = 'correct' | 'close' | 'mispronounced' | 'unclear';
+
+export function checkSpeech(word: string, audioBase64: string) {
+  return request<{ result: SpeechResult }>(
+    '/api/speech/check',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ word, audioBase64 }),
+    },
+    30_000,
+  );
+}
+
 // Turns any error into something safe to show on screen.
 export function errorMessage(err: unknown) {
   return err instanceof FriendlyError ? err.message : 'Something went wrong. Please try again.';

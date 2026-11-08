@@ -71,6 +71,9 @@ function RootNavigator({ fontsReady }: { fontsReady: boolean }) {
           <Stack.Screen name="see-images" />
           <Stack.Screen name="change-password" />
           <Stack.Screen name="add-child" />
+          <Stack.Screen name="voice-consent" />
+          <Stack.Screen name="speech-history/[setId]" />
+          <Stack.Screen name="speak/[setId]" options={{ gestureEnabled: false }} />
           <Stack.Screen name="create-lesson" />
           <Stack.Screen name="history/[lessonId]" />
           {/* No swipe-back during a lesson, so little fingers don't leave by accident. */}

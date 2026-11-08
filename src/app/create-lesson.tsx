@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ChunkyButton } from '@/components/ChunkyButton';
@@ -16,17 +16,20 @@ import { saveLesson } from '@/lib/lessonStore';
 const MAX_TOPIC_LENGTH = 40;
 
 // Parent types a topic, the server makes the lesson, and the parent checks it.
-// Nothing is stored until the parent taps Save.
+// Nothing is stored until the parent taps Save. Activities and Talk both use this
+// screen and the same server route; `kind=talk` makes a Talk category.
 export default function CreateLessonScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { kind } = useLocalSearchParams<{ kind?: string }>();
+  const forTalk = kind === 'talk';
   const [topic, setTopic] = useState('');
   const [generating, setGenerating] = useState(false);
   const [lesson, setLesson] = useState<GeneratedLesson | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string>();
 
-  const goBack = () => (router.canGoBack() ? router.back() : router.replace('/activities'));
+  const goBack = () => (router.canGoBack() ? router.back() : router.replace(forTalk ? '/talk' : '/activities'));
 
   const handleCreate = async () => {
     const cleanTopic = topic.trim();
@@ -50,7 +53,7 @@ export default function CreateLessonScreen() {
     setError(undefined);
     setSaving(true);
     try {
-      await saveLesson(user.uid, lesson);
+      await saveLesson(user.uid, lesson, forTalk ? 'talkSets' : 'lessons');
       goBack();
     } catch (err) {
       setError(errorMessage(err));
@@ -87,7 +90,7 @@ export default function CreateLessonScreen() {
         ]}
         keyboardShouldPersistTaps="handled"
       >
-        <ScreenBanner onBack={goBack} backLabel="Back to activities" />
+        <ScreenBanner onBack={goBack} backLabel="Go back" />
 
         {lesson ? (
           <>
@@ -106,7 +109,7 @@ export default function CreateLessonScreen() {
                     accessibilityLabel={item.word}
                   />
                   <Text style={styles.previewWord}>{item.word}</Text>
-                  <Text style={styles.previewQuestion}>{item.question}</Text>
+                  {forTalk ? null : <Text style={styles.previewQuestion}>{item.question}</Text>}
                 </View>
               ))}
             </View>
@@ -117,7 +120,7 @@ export default function CreateLessonScreen() {
               </Text>
             ) : null}
 
-            <ChunkyButton label="Save lesson" onPress={handleSave} loading={saving} />
+            <ChunkyButton label={forTalk ? 'Save category' : 'Save lesson'} onPress={handleSave} loading={saving} />
             <ChunkyButton label="Discard" variant="fun" onPress={handleDiscard} />
           </>
         ) : (
@@ -128,8 +131,8 @@ export default function CreateLessonScreen() {
             </View>
 
             <TextField
-              label="What should Mochi teach?"
-              placeholder="e.g. Numbers"
+              label={forTalk ? 'What should your child practise saying?' : 'What should Mochi teach?'}
+              placeholder={forTalk ? 'e.g. Toys' : 'e.g. Numbers'}
               value={topic}
               onChangeText={setTopic}
               maxLength={MAX_TOPIC_LENGTH}
@@ -143,7 +146,7 @@ export default function CreateLessonScreen() {
               </Text>
             ) : null}
 
-            <ChunkyButton label="Create lesson" onPress={handleCreate} />
+            <ChunkyButton label={forTalk ? 'Create category' : 'Create lesson'} onPress={handleCreate} />
           </>
         )}
       </ScrollView>

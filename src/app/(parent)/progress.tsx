@@ -1,18 +1,52 @@
+import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { SegmentedToggle } from '@/components/SegmentedToggle';
 import { colors, fonts, radius, TAP_TARGET } from '@/constants/theme';
 import { useChildren } from '@/context/ChildrenContext';
 import { PRESET_LESSONS } from '@/data/lessons';
 import { formatDateTime, useAttempts } from '@/lib/attempts';
+import { useSpeechAttempts } from '@/lib/speechAttempts';
 
-// The selected child's last score in each lesson. The clock opens the full history.
+type Part = 'activities' | 'speaking';
+
+const PARTS: { value: Part; label: string }[] = [
+  { value: 'activities', label: 'Activities' },
+  { value: 'speaking', label: 'Speaking' },
+];
+
+// Two parts for the selected child: lesson scores, and Talk with Mochi scores.
 export default function ProgressScreen() {
   const insets = useSafeAreaInsets();
   const { selectedChild } = useChildren();
-  const { attempts, loading } = useAttempts(selectedChild?.id);
+  const [part, setPart] = useState<Part>('activities');
+
+  return (
+    <ScrollView style={styles.screen} contentContainerStyle={[styles.content, { paddingTop: insets.top + 24 }]}>
+      <Text style={styles.title}>{selectedChild ? `${selectedChild.nickname}'s progress` : 'Progress'}</Text>
+
+      {!selectedChild ? (
+        <Text style={styles.empty}>Add a child to see their scores here.</Text>
+      ) : (
+        <>
+          <SegmentedToggle options={PARTS} value={part} onChange={setPart} />
+          {part === 'activities' ? (
+            <ActivitiesProgress childId={selectedChild.id} />
+          ) : (
+            <SpeakingProgress childId={selectedChild.id} />
+          )}
+        </>
+      )}
+    </ScrollView>
+  );
+}
+
+function ActivitiesProgress({ childId }: { childId: string }) {
+  const { attempts, loading } = useAttempts(childId);
+  if (loading) return null;
 
   // Every ready-made lesson, plus any other lesson this child has played.
   const lessons = PRESET_LESSONS.map(({ id, title }) => ({ id, title }));
@@ -22,52 +56,79 @@ export default function ProgressScreen() {
     }
   }
 
-  return (
-    <ScrollView style={styles.screen} contentContainerStyle={[styles.content, { paddingTop: insets.top + 24 }]}>
-      <Text style={styles.title}>
-        {selectedChild ? `${selectedChild.nickname}'s progress` : 'Progress'}
-      </Text>
+  return lessons.map((lesson) => {
+    // The list is newest first, so the first match is the last attempt.
+    const last = attempts.find((attempt) => attempt.lessonId === lesson.id);
+    return (
+      <ProgressCard
+        key={lesson.id}
+        title={lesson.title}
+        last={last}
+        onHistory={() => router.push({ pathname: '/history/[lessonId]', params: { lessonId: lesson.id } })}
+      />
+    );
+  });
+}
 
-      {!selectedChild ? (
-        <Text style={styles.empty}>Add a child to see their scores here.</Text>
-      ) : loading ? null : (
-        lessons.map((lesson) => {
-          // The list is newest first, so the first match is the last attempt.
-          const last = attempts.find((attempt) => attempt.lessonId === lesson.id);
-          return (
-            <View key={lesson.id} style={styles.card}>
-              <View style={styles.cardText}>
-                <Text style={styles.lessonTitle}>{lesson.title}</Text>
-                {last ? (
-                  <>
-                    <Text style={styles.score}>
-                      Last: {last.score}% · {last.stars}/{last.maxStars} stars
-                    </Text>
-                    <Text style={styles.date}>{formatDateTime(last.finishedAt)}</Text>
-                  </>
-                ) : (
-                  <Text style={styles.date}>Not played yet</Text>
-                )}
-              </View>
-              {last ? (
-                <Pressable
-                  onPress={() => router.push({ pathname: '/history/[lessonId]', params: { lessonId: lesson.id } })}
-                  accessibilityRole="button"
-                  accessibilityLabel={`See ${lesson.title} history`}
-                  style={styles.historyButton}
-                >
-                  <SymbolView
-                    name={{ ios: 'clock.arrow.circlepath', android: 'history', web: 'history' }}
-                    size={24}
-                    tintColor={colors.primary}
-                  />
-                </Pressable>
-              ) : null}
-            </View>
-          );
-        })
-      )}
-    </ScrollView>
+function SpeakingProgress({ childId }: { childId: string }) {
+  const { items: attempts, loading } = useSpeechAttempts(childId);
+  if (loading) return null;
+
+  if (attempts.length === 0) return <Text style={styles.empty}>Nothing played yet in Talk with Mochi.</Text>;
+
+  // Only sets this child has played. The list is newest first, so the first
+  // attempt found for each set is its last attempt.
+  const lastPerSet = attempts.filter(
+    (attempt, index) => attempts.findIndex((other) => other.setId === attempt.setId) === index,
+  );
+
+  return lastPerSet.map((last) => (
+    <ProgressCard
+      key={last.setId}
+      title={last.setTitle}
+      last={last}
+      onHistory={() => router.push({ pathname: '/speech-history/[setId]', params: { setId: last.setId } })}
+    />
+  ));
+}
+
+type ProgressCardProps = {
+  title: string;
+  last?: { score: number; stars: number; maxStars: number; finishedAt: Date };
+  onHistory: () => void;
+};
+
+function ProgressCard({ title, last, onHistory }: ProgressCardProps) {
+  return (
+    <View style={styles.card}>
+      <View style={styles.cardText}>
+        <Text style={styles.lessonTitle}>{title}</Text>
+        {last ? (
+          <>
+            <Text style={styles.score}>
+              Last: {last.score}% · {last.stars}/{last.maxStars} stars
+            </Text>
+            <Text style={styles.date}>{formatDateTime(last.finishedAt)}</Text>
+          </>
+        ) : (
+          <Text style={styles.date}>Not played yet</Text>
+        )}
+      </View>
+      {last ? (
+        <Pressable
+          onPress={onHistory}
+          accessibilityRole="button"
+          accessibilityLabel={`See ${title} history`}
+          style={styles.historyButton}
+        >
+          <SymbolView
+            name={{ ios: 'clock.arrow.circlepath', android: 'history', web: 'history' }}
+            size={24}
+            tintColor={colors.primary}
+          />
+        </Pressable>
+      ) : null}
+    </View>
   );
 }
 

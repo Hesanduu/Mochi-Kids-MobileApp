@@ -5,10 +5,11 @@ import { ChunkyButton } from '@/components/ChunkyButton';
 import { StarRow } from '@/components/game/StarRow';
 import { Mochi } from '@/components/Mochi';
 import { colors, fonts, radius } from '@/constants/theme';
-import { MAX_STARS_PER_PAGE, scorePercent, type PageResult } from '@/lib/game';
+import { MAX_STARS_PER_PAGE, scorePercent } from '@/lib/game';
 
 type LessonResultsProps = {
-  results: PageResult[];
+  results: { answer: string; stars: number }[];
+  starsPerPage?: number;
   // True if the score could not be stored, so the parent isn't misled.
   saveFailed: boolean;
   onPlayAgain: () => void;
@@ -16,7 +17,13 @@ type LessonResultsProps = {
 };
 
 // The end of a lesson: total score, then the stars for each page.
-export function LessonResults({ results, saveFailed, onPlayAgain, onDone }: LessonResultsProps) {
+export function LessonResults({
+  results,
+  starsPerPage = MAX_STARS_PER_PAGE,
+  saveFailed,
+  onPlayAgain,
+  onDone,
+}: LessonResultsProps) {
   const insets = useSafeAreaInsets();
   const earned = results.reduce((total, page) => total + page.stars, 0);
 
@@ -30,16 +37,16 @@ export function LessonResults({ results, saveFailed, onPlayAgain, onDone }: Less
     >
       <Mochi size={170} />
       <Text style={styles.title}>All done!</Text>
-      <Text style={styles.percent}>{scorePercent(results)}%</Text>
+      <Text style={styles.percent}>{scorePercent(results, starsPerPage)}%</Text>
       <Text style={styles.total}>
-        {earned} of {results.length * MAX_STARS_PER_PAGE} stars
+        {earned} of {results.length * starsPerPage} stars
       </Text>
 
       <View style={styles.card}>
         {results.map((page, index) => (
           <View key={page.answer} style={[styles.row, index < results.length - 1 && styles.rowDivider]}>
             <Text style={styles.word}>{page.answer}</Text>
-            <StarRow stars={page.stars} size={22} />
+            <StarRow stars={page.stars} total={starsPerPage} size={22} />
           </View>
         ))}
       </View>

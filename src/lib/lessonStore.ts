@@ -1,7 +1,8 @@
-// Lessons a parent created with AI. Everything is in Firestore, so a lesson
-// follows the parent's account to any phone:
-//   parents/{uid}/lessons/{lessonId}               title and words
-//   parents/{uid}/lessons/{lessonId}/pictures/{id} one picture each
+// Things a parent created with AI. Everything is in Firestore, so it follows the
+// parent's account to any phone. Activities lessons and Talk categories have the
+// same shape, and are kept in separate collections:
+//   parents/{uid}/{lessons or talkSets}/{id}               title and words
+//   parents/{uid}/{lessons or talkSets}/{id}/pictures/{id} one picture each
 // Pictures have their own documents because a document can only hold about 1 MB.
 import { useEffect, useState } from 'react';
 import {
@@ -24,17 +25,20 @@ import type { Lesson, LessonItem } from '@/data/lessons';
 import { FriendlyError, type GeneratedLesson } from '@/lib/api';
 import { attemptsCollection } from '@/lib/attempts';
 import { childrenCollection, withTimeout } from '@/lib/children';
+import { childCollection } from '@/lib/speechAttempts';
 import { db } from '@/lib/firebase';
+
+export type SavedKind = 'lessons' | 'talkSets';
 
 export type SavedLessonSummary = { id: string; title: string; pageCount: number };
 
-function lessonsCollection(uid: string) {
-  return collection(db, 'parents', uid, 'lessons');
+function savedCollection(uid: string, kind: SavedKind) {
+  return collection(db, 'parents', uid, kind);
 }
 
 // A batch saves everything together, or nothing, so a lesson can't lose pictures.
-export async function saveLesson(uid: string, lesson: GeneratedLesson) {
-  const lessonRef = doc(lessonsCollection(uid));
+export async function saveLesson(uid: string, lesson: GeneratedLesson, kind: SavedKind = 'lessons') {
+  const lessonRef = doc(savedCollection(uid, kind));
   const batch = writeBatch(db);
 
   batch.set(lessonRef, {
@@ -56,26 +60,29 @@ export async function saveLesson(uid: string, lesson: GeneratedLesson) {
 // Firestore allows at most 500 changes in one batch.
 const DELETES_PER_BATCH = 400;
 
-// Removes a lesson, its pictures, and every child's scores for it. The lesson
-// itself goes last, so if the phone loses signal the parent can simply try again.
-export async function deleteSavedLesson(uid: string, lessonId: string) {
-  const lessonRef = doc(lessonsCollection(uid), lessonId);
+// Removes something a parent made, its pictures, and every child's scores for it.
+// The main document goes last, so if the phone loses signal the parent can try again.
+export async function deleteSaved(uid: string, id: string, kind: SavedKind) {
+  const savedRef = doc(savedCollection(uid, kind), id);
 
   const [pictures, children] = await withTimeout(
-    Promise.all([getDocs(collection(lessonRef, 'pictures')), getDocs(childrenCollection(uid))]),
-    30_000,
-  );
-  const attempts = await withTimeout(
-    Promise.all(
-      children.docs.map((child) =>
-        getDocs(query(attemptsCollection(uid, child.id), where('lessonId', '==', lessonId))),
-      ),
-    ),
+    Promise.all([getDocs(collection(savedRef, 'pictures')), getDocs(childrenCollection(uid))]),
     30_000,
   );
 
+  // Each child's records that belong to this lesson or category.
+  const scoreQueries = children.docs.flatMap((child) =>
+    kind === 'lessons'
+      ? [query(attemptsCollection(uid, child.id), where('lessonId', '==', id))]
+      : [
+          query(childCollection(uid, child.id, 'speechAttempts'), where('setId', '==', id)),
+          query(childCollection(uid, child.id, 'mispronouncedWords'), where('setId', '==', id)),
+        ],
+  );
+  const scores = await withTimeout(Promise.all(scoreQueries.map((scoreQuery) => getDocs(scoreQuery))), 30_000);
+
   const toDelete: DocumentReference[] = [
-    ...attempts.flatMap((snapshot) => snapshot.docs.map((d) => d.ref)),
+    ...scores.flatMap((snapshot) => snapshot.docs.map((d) => d.ref)),
     ...pictures.docs.map((d) => d.ref),
   ];
   for (let start = 0; start < toDelete.length; start += DELETES_PER_BATCH) {
@@ -84,11 +91,11 @@ export async function deleteSavedLesson(uid: string, lessonId: string) {
     await withTimeout(batch.commit(), 30_000);
   }
 
-  await withTimeout(deleteDoc(lessonRef), 30_000);
+  await withTimeout(deleteDoc(savedRef), 30_000);
 }
 
 // Live list for the library. Pictures are left out, so this stays quick.
-export function useSavedLessons() {
+export function useSavedLessons(kind: SavedKind = 'lessons') {
   const { user } = useAuth();
   const uid = user?.uid;
   const [result, setResult] = useState<{ uid: string; lessons: SavedLessonSummary[] } | null>(null);
@@ -96,7 +103,7 @@ export function useSavedLessons() {
   useEffect(() => {
     if (!uid) return;
     return onSnapshot(
-      query(lessonsCollection(uid), orderBy('createdAt', 'desc')),
+      query(savedCollection(uid, kind), orderBy('createdAt', 'desc')),
       (snapshot) => {
         const lessons = snapshot.docs.map((d) => ({
           id: d.id,
@@ -107,14 +114,14 @@ export function useSavedLessons() {
       },
       () => setResult({ uid, lessons: [] }),
     );
-  }, [uid]);
+  }, [uid, kind]);
 
   return result !== null && result.uid === uid ? result.lessons : [];
 }
 
 // Loads one lesson with its pictures, ready to play.
-export async function loadSavedLesson(uid: string, lessonId: string): Promise<Lesson> {
-  const lessonRef = doc(lessonsCollection(uid), lessonId);
+export async function loadSavedLesson(uid: string, lessonId: string, kind: SavedKind = 'lessons'): Promise<Lesson> {
+  const lessonRef = doc(savedCollection(uid, kind), lessonId);
   try {
     const [lessonSnapshot, picturesSnapshot] = await withTimeout(
       Promise.all([getDoc(lessonRef), getDocs(collection(lessonRef, 'pictures'))]),

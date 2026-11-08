@@ -28,7 +28,7 @@ function colorItem(word: string, hex: string): LessonItem {
 
 // These hex values are lesson content, not app theme colours. They are strong
 // and far apart so a 3-year-old can tell them apart easily.
-const COLOURS: Lesson = {
+export const COLOURS: Lesson = {
   id: 'colours',
   title: 'Colours',
   items: [
@@ -52,8 +52,8 @@ function animalItem(word: string, source: number): LessonItem {
   };
 }
 
-// Drawn once by server/scripts/drawAnimals.js and bundled with the app.
-const ANIMALS: Lesson = {
+// Drawn once by server/scripts/drawPictures.js and bundled with the app.
+export const ANIMALS: Lesson = {
   id: 'animals',
   title: 'Animals',
   items: [

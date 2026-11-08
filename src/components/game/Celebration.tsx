@@ -42,11 +42,12 @@ const loop = (duration: number) =>
 type CelebrationProps = {
   stars: number;
   praise: string;
+  maxStars?: number;
 };
 
 // Full-screen party: spinning sun rays and confetti behind a big, jumping,
 // clapping Mochi. With "reduce motion" switched on, it stays still.
-export function Celebration({ stars, praise }: CelebrationProps) {
+export function Celebration({ stars, praise, maxStars }: CelebrationProps) {
   const { width, height } = useWindowDimensions();
   const reducedMotion = useReducedMotion();
 
@@ -92,7 +93,7 @@ export function Celebration({ stars, praise }: CelebrationProps) {
 
       {reducedMotion ? null : <Confetti />}
 
-      <StarRow stars={stars} size={58} pop />
+      <StarRow stars={stars} total={maxStars} size={maxStars === 5 ? 46 : 58} pop />
 
       <Animated.View
         style={[
