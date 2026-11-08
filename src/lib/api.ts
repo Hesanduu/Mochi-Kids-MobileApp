@@ -1,4 +1,4 @@
-// Talks to our own server (server/), never to Unsplash or Gemini directly.
+// Talks to our own server (server/), never to Unsplash or OpenAI directly.
 // The server holds the API keys and runs the child-safety checks.
 
 // Set in the app's .env, e.g. EXPO_PUBLIC_API_URL=http://192.168.1.20:3000

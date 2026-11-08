@@ -1,8 +1,10 @@
 import { Redirect } from 'expo-router';
 
-// The app opens on the login screen.
-// Later, when we add Firebase, this is where we'll send logged-in parents
-// straight to /home instead.
+import { useAuth } from '@/context/AuthContext';
+
+// The first route: sends each parent to the right place.
 export default function Index() {
-  return <Redirect href="/login" />;
+  const { user, needsConsent } = useAuth();
+  if (!user) return <Redirect href="/login" />;
+  return <Redirect href={needsConsent ? '/consent' : '/home'} />;
 }

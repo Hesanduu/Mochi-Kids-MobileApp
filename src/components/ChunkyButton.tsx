@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { colors, fonts, radius } from '@/constants/theme';
 
@@ -10,6 +10,8 @@ type ChunkyButtonProps = {
   variant?: 'primary' | 'fun';
   height?: number;
   icon?: ReactNode;
+  // Shows a spinner and ignores taps, e.g. while logging in.
+  loading?: boolean;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -21,6 +23,7 @@ export function ChunkyButton({
   variant = 'primary',
   height = 58,
   icon,
+  loading = false,
   style,
 }: ChunkyButtonProps) {
   const isFun = variant === 'fun';
@@ -29,8 +32,10 @@ export function ChunkyButton({
   return (
     <Pressable
       onPress={onPress}
+      disabled={loading}
       accessibilityRole="button"
       accessibilityLabel={label}
+      accessibilityState={{ disabled: loading, busy: loading }}
       style={[{ height: height + depth }, style]}
     >
       {({ pressed }) => (
@@ -60,7 +65,7 @@ export function ChunkyButton({
               },
             ]}
           >
-            {icon}
+            {loading ? <ActivityIndicator color={isFun ? colors.text : colors.surface} /> : icon}
             <Text
               style={[
                 styles.label,

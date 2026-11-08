@@ -1,30 +1,45 @@
 import { useState } from 'react';
-import {
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
-import { Link, router } from 'expo-router';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet,
+  Text, View, } from 'react-native';
+import { Link } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ChunkyButton } from '@/components/ChunkyButton';
 import { Dots } from '@/components/Dots';
+import { GoogleSignInButton } from '@/components/GoogleSignInButton';
 import { Mochi } from '@/components/Mochi';
 import { TextField } from '@/components/TextField';
 import { colors, fonts } from '@/constants/theme';
+import { friendlyAuthError, logIn, looksLikeEmail } from '@/lib/auth';
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [emailError, setEmailError] = useState<string>();
+  const [passwordError, setPasswordError] = useState<string>();
+  const [formError, setFormError] = useState<string>();
+  const [loading, setLoading] = useState(false);
 
-  // No auth yet: go straight to the dashboard.
-  // `replace` (not `push`) so the back gesture doesn't return to login.
-  const handleLogin = () => router.replace('/home');
+  const handleLogin = async () => {
+    const cleanEmail = email.trim();
+    const badEmail = looksLikeEmail(cleanEmail) ? undefined : 'Please enter your email address.';
+    const badPassword = password ? undefined : 'Please enter your password.';
+    setEmailError(badEmail);
+    setPasswordError(badPassword);
+    setFormError(undefined);
+    if (badEmail || badPassword) return;
+
+    setLoading(true);
+    try {
+      // On success the root layout sees the login and opens the Dashboard.
+      await logIn(cleanEmail, password);
+    } catch (err) {
+      setFormError(friendlyAuthError(err));
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <KeyboardAvoidingView
@@ -33,7 +48,7 @@ export default function LoginScreen() {
     >
       <ScrollView
         style={styles.flex}
-        contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 24 }]}
+        contentContainerStyle={[styles.scroll, { paddingBottom: Math.max(insets.bottom, 16) }]}
         keyboardShouldPersistTaps="handled"
       >
         {/* Light blue header with Mochi */}
@@ -62,6 +77,7 @@ export default function LoginScreen() {
               placeholder="you@example.com"
               value={email}
               onChangeText={setEmail}
+              error={emailError}
               keyboardType="email-address"
               autoCapitalize="none"
               autoComplete="email"
@@ -73,6 +89,7 @@ export default function LoginScreen() {
               placeholder="Your password"
               value={password}
               onChangeText={setPassword}
+              error={passwordError}
               password
               autoCapitalize="none"
               autoComplete="current-password"
@@ -80,12 +97,21 @@ export default function LoginScreen() {
               returnKeyType="done"
             />
 
-            {/* Does nothing yet. Password reset comes with auth. */}
-            <Pressable accessibilityRole="link" style={styles.forgot} hitSlop={8}>
-              <Text style={styles.link}>Forgot password?</Text>
-            </Pressable>
+            <Link href="/forgot-password" asChild>
+              <Pressable accessibilityRole="link" style={styles.forgot} hitSlop={8}>
+                <Text style={styles.link}>Forgot password?</Text>
+              </Pressable>
+            </Link>
 
-            <ChunkyButton label="Log in" onPress={handleLogin} />
+            {formError ? (
+              <Text style={styles.formError} accessibilityLiveRegion="polite">
+                {formError}
+              </Text>
+            ) : null}
+
+            <ChunkyButton label="Log in" onPress={handleLogin} loading={loading} />
+
+            <GoogleSignInButton />
           </View>
 
           {/* Pushes the sign-up link to the bottom on tall phones */}
@@ -106,6 +132,13 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   flex: {
     flex: 1,
+  },
+  formError: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 15,
+    lineHeight: 21,
+    color: colors.error,
+    textAlign: 'center',
   },
   scroll: {
     flexGrow: 1,

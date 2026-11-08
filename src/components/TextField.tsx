@@ -9,10 +9,12 @@ type TextFieldProps = Omit<TextInputProps, 'style' | 'secureTextEntry'> & {
   // Hides the text and shows an eye button to reveal it.
   password?: boolean;
   height?: number;
+  // Shown in red under the field.
+  error?: string;
 };
 
 // A labelled text input. The border turns blue with a soft glow while you type.
-export function TextField({ label, password = false, height = 54, ...inputProps }: TextFieldProps) {
+export function TextField({ label, password = false, height = 54, error, ...inputProps }: TextFieldProps) {
   const [focused, setFocused] = useState(false);
   const [hidden, setHidden] = useState(true);
 
@@ -22,7 +24,7 @@ export function TextField({ label, password = false, height = 54, ...inputProps 
 
       {/* The glow is a slightly larger rounded box behind the input. */}
       <View style={[styles.ring, focused && styles.ringFocused]}>
-        <View style={[styles.box, { height }, focused && styles.boxFocused]}>
+        <View style={[styles.box, { height }, error ? styles.boxError : null, focused && styles.boxFocused]}>
           <TextInput
             {...inputProps}
             accessibilityLabel={label}
@@ -60,6 +62,12 @@ export function TextField({ label, password = false, height = 54, ...inputProps 
           )}
         </View>
       </View>
+
+      {error ? (
+        <Text style={styles.error} accessibilityLiveRegion="polite">
+          {error}
+        </Text>
+      ) : null}
     </View>
   );
 }
@@ -96,6 +104,15 @@ const styles = StyleSheet.create({
   },
   boxFocused: {
     borderColor: colors.blue,
+  },
+  boxError: {
+    borderColor: colors.error,
+  },
+  error: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 15,
+    lineHeight: 20,
+    color: colors.error,
   },
   input: {
     flex: 1,

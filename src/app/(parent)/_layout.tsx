@@ -1,4 +1,4 @@
-import { StyleSheet, type ColorValue } from 'react-native';
+import { Platform, StyleSheet, type ColorValue } from 'react-native';
 import { Tabs } from 'expo-router/js-tabs';
 import { SymbolView, type AndroidSymbol, type SFSymbol } from 'expo-symbols';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -12,19 +12,21 @@ function tabIcon(ios: SFSymbol, android: AndroidSymbol) {
   };
 }
 
-// Sizes from the mockup: 8px above the tabs, 58px tabs, 20px below.
 const BAR_PADDING_TOP = 8;
 const TAB_HEIGHT = 58;
-const BAR_PADDING_BOTTOM = 20;
+const BAR_PADDING_BOTTOM_MIN = 8;
+// iPhones report 34px at the bottom, but the home indicator only needs about half.
+const IOS_BOTTOM_MAX = 16;
 
-// Bottom tabs for the parent area: Home / Progress / Settings.
+// Bottom tabs for the parent area: Home / Activities / Progress / Account.
 export default function ParentLayout() {
   const insets = useSafeAreaInsets();
 
   // The tab bar needs an explicit height, or it uses a small default and crops
-  // the tabs. Phones with a home indicator (or Android gesture bar) already have
-  // a bottom inset, so use whichever is bigger: the inset or the mockup's 20px.
-  const paddingBottom = Math.max(insets.bottom, BAR_PADDING_BOTTOM);
+  // the tabs. Android keeps its full inset so the tabs never sit under the
+  // system buttons; iOS can sit closer to the edge.
+  const bottomInset = Platform.OS === 'ios' ? Math.min(insets.bottom, IOS_BOTTOM_MAX) : insets.bottom;
+  const paddingBottom = Math.max(bottomInset, BAR_PADDING_BOTTOM_MIN);
   const barHeight = BAR_PADDING_TOP + TAB_HEIGHT + paddingBottom;
 
   return (
@@ -51,8 +53,8 @@ export default function ParentLayout() {
         options={{ title: 'Progress', tabBarIcon: tabIcon('chart.bar.fill', 'bar_chart') }}
       />
       <Tabs.Screen
-        name="settings"
-        options={{ title: 'Settings', tabBarIcon: tabIcon('gearshape.fill', 'settings') }}
+        name="account"
+        options={{ title: 'Account', tabBarIcon: tabIcon('person.crop.circle.fill', 'account_circle') }}
       />
     </Tabs>
   );
@@ -69,6 +71,7 @@ const styles = StyleSheet.create({
   item: {
     height: TAB_HEIGHT,
     borderRadius: radius.md,
+    overflow: 'hidden', // clips the blue highlight to the rounded corners
     marginHorizontal: 2,
     paddingVertical: 6,
   },

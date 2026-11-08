@@ -53,3 +53,8 @@ CLAUDE.md
 .designs/
 design/
 .vscode/
+
+
+# Firebase app files: kept off GitHub (public repo). EAS still gets them via .easignore.
+google-services.json
+GoogleService-Info.plist
