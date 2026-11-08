@@ -9,6 +9,7 @@ import { Dots } from '@/components/Dots';
 import { Mochi } from '@/components/Mochi';
 import { colors, fonts, radius } from '@/constants/theme';
 import { useAuth } from '@/context/AuthContext';
+import { useChildren } from '@/context/ChildrenContext';
 
 // "Good morning" / "Good afternoon" / "Good evening" from the phone's clock.
 function greeting() {
@@ -21,6 +22,12 @@ function greeting() {
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { children, selectedChild, loading } = useChildren();
+
+  // Only a family with no child yet sees the "add your child" messages.
+  const needsFirstChild = !loading && children.length === 0;
+  // Once a child exists, greetings use the child's nickname, never the parent's name.
+  const greetingName = loading ? ' ' : (selectedChild?.nickname ?? user?.displayName ?? 'Parent');
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
@@ -28,7 +35,7 @@ export default function HomeScreen() {
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
         <View>
           <Text style={styles.greeting}>{greeting()}</Text>
-          <Text style={styles.name}>{user?.displayName ?? 'Parent'}</Text>
+          <Text style={styles.name}>{greetingName}</Text>
         </View>
 
         {/* Yellow welcome card */}
@@ -39,8 +46,12 @@ export default function HomeScreen() {
               { size: 8, color: colors.sky, right: 118, bottom: 16 },
             ]}
           />
-          <Text style={styles.welcomeTitle}>Mochi can&apos;t wait to meet your little one!</Text>
-          <Text style={styles.welcomeText}>Add your child&apos;s profile to start.</Text>
+          <Text style={styles.welcomeTitle}>
+            {needsFirstChild ? 'Mochi can\u2019t wait to meet your little one!' : 'Mochi is ready to play!'}
+          </Text>
+          <Text style={styles.welcomeText}>
+            {needsFirstChild ? 'Add your child\u2019s profile to start.' : 'Pick an activity to start learning.'}
+          </Text>
           <Mochi size={132} style={styles.welcomeMochi} />
         </View>
       </View>
@@ -55,28 +66,28 @@ export default function HomeScreen() {
         />
       </View>
 
-      {/* Children */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Your children</Text>
-        <View style={styles.emptyCard}>
-          <Text style={styles.emptyText}>No child profiles yet. Only a nickname and age are needed.</Text>
-          {/* Adding a child is a later feature. */}
-          <ChunkyButton
-            label="Add a child"
-            variant="fun"
-            height={52}
-            onPress={() => {}}
-            icon={
-              <SymbolView
-                name={{ ios: 'plus', android: 'add', web: 'add' }}
-                size={18}
-                tintColor={colors.text}
-              />
-            }
-          />
+      {/* First child only. After that, children are managed in the Profile tab. */}
+      {needsFirstChild ? (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Your children</Text>
+          <View style={styles.emptyCard}>
+            <Text style={styles.emptyText}>No child profiles yet. Only a nickname and age are needed.</Text>
+            <ChunkyButton
+              label="Add a child"
+              variant="fun"
+              height={52}
+              onPress={() => router.push('/add-child')}
+              icon={
+                <SymbolView
+                  name={{ ios: 'plus', android: 'add', web: 'add' }}
+                  size={18}
+                  tintColor={colors.text}
+                />
+              }
+            />
+          </View>
         </View>
-      </View>
-
+      ) : null}
     </ScrollView>
   );
 }

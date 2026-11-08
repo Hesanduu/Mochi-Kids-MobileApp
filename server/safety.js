@@ -60,6 +60,27 @@ function hasBlockedWord(text) {
   return words.some((w, i) => isBlocked(w) || (i > 0 && BLOCKED.has(`${words[i - 1]} ${w}`)));
 }
 
+// This message is for parents, who type the lesson topics.
+export const LESSON_NO = 'Please add something suitable for ages 3–5 to create an activity.';
+
+// Lesson topics get the same checks as everything else, with messages for parents.
+export async function checkLessonTopic(raw) {
+  const text = typeof raw === 'string' ? raw.trim() : '';
+  if (text.length < 2) return { ok: false, message: 'Please type a lesson name first.' };
+  if (text.length > 40) return { ok: false, message: 'Please use just a word or two for the lesson name.' };
+
+  const check = await checkRequest(text);
+  if (!check.ok && check.message === GENTLE_NO) return { ok: false, message: LESSON_NO };
+  return check;
+}
+
+// True if anything the AI wrote for a lesson contains a blocked word.
+export function lessonHasBlockedWord(plan) {
+  return [plan.title, ...plan.items.flatMap((item) => [item.word, item.question, item.picture])].some(
+    hasBlockedWord,
+  );
+}
+
 // Returns { ok: true, text } or { ok: false, message }.
 export async function checkRequest(raw) {
   const text = typeof raw === 'string' ? raw.trim() : '';

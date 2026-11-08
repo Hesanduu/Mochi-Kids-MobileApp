@@ -7,6 +7,7 @@ import { Nunito_500Medium, Nunito_600SemiBold, Nunito_700Bold, Nunito_800ExtraBo
 
 import { colors } from '@/constants/theme';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
+import { ChildrenProvider } from '@/context/ChildrenContext';
 
 // Keep the splash screen visible until the fonts and login state are ready,
 // so the app never flashes the wrong font or the wrong screen.
@@ -24,7 +25,9 @@ export default function RootLayout() {
 
   return (
     <AuthProvider>
-      <RootNavigator fontsReady={fontsLoaded || fontError !== null} />
+      <ChildrenProvider>
+        <RootNavigator fontsReady={fontsLoaded || fontError !== null} />
+      </ChildrenProvider>
     </AuthProvider>
   );
 }
@@ -67,6 +70,11 @@ function RootNavigator({ fontsReady }: { fontsReady: boolean }) {
           <Stack.Screen name="(parent)" />
           <Stack.Screen name="see-images" />
           <Stack.Screen name="change-password" />
+          <Stack.Screen name="add-child" />
+          <Stack.Screen name="create-lesson" />
+          <Stack.Screen name="history/[lessonId]" />
+          {/* No swipe-back during a lesson, so little fingers don't leave by accident. */}
+          <Stack.Screen name="play/[lessonId]" options={{ gestureEnabled: false }} />
         </Stack.Protected>
       </Stack>
     </>

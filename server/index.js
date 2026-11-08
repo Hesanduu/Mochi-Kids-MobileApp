@@ -3,15 +3,19 @@
 // Run with: npm run dev   (reads keys from server/.env)
 import express from 'express';
 
-import { drawPicture } from './ai.js';
+import { drawPicture, planLesson } from './ai.js';
 import { rateLimit } from './rateLimit.js';
-import { checkRequest, GENTLE_NO } from './safety.js';
+import { requireLogin } from './requireLogin.js';
+import { checkLessonTopic, checkRequest, GENTLE_NO, lessonHasBlockedWord, LESSON_NO } from './safety.js';
 
 const app = express();
 app.use(express.json({ limit: '2kb' })); // requests are just a short text
 
 // Quick "is the server running?" check. Open http://<laptop-ip>:3000/health on your phone.
 app.get('/health', (req, res) => res.json({ ok: true }));
+
+// Everything under /api/ is for logged-in parents only.
+app.use('/api', requireLogin);
 
 // ---------- Search Unsplash photos ----------
 app.get('/api/images/search', rateLimit({ max: 60 }), async (req, res) => {
@@ -74,6 +78,39 @@ app.post('/api/images/generate', rateLimit({ max: 10 }), async (req, res) => {
   } catch (err) {
     console.error('AI image failed:', err.message);
     res.status(502).json({ error: "Mochi couldn't draw right now. Please try again." });
+  }
+});
+
+// ---------- Create a whole lesson with AI from one topic word ----------
+app.post('/api/lessons/generate', rateLimit({ max: 5 }), async (req, res) => {
+  const check = await checkLessonTopic(req.body?.topic);
+  if (!check.ok) return res.status(400).json({ error: check.message });
+
+  try {
+    const plan = await planLesson(check.text);
+    if (!plan || lessonHasBlockedWord(plan)) return res.status(400).json({ error: LESSON_NO });
+
+    const pictures = await Promise.all(
+      plan.items.map((item) => drawPicture(item.picture, { forLesson: true })),
+    );
+    // No half-finished lessons: every picture must have passed its safety check.
+    if (pictures.some((picture) => !picture)) {
+      return res.status(400).json({ error: "Mochi couldn't draw that lesson. Please try a different topic." });
+    }
+
+    res.json({
+      title: plan.title,
+      topic: check.text,
+      items: plan.items.map((item, index) => ({
+        id: `item-${index + 1}`,
+        word: item.word.trim().replace(/^./, (first) => first.toUpperCase()),
+        question: item.question.trim(),
+        ...pictures[index],
+      })),
+    });
+  } catch (err) {
+    console.error('AI lesson failed:', err.message);
+    res.status(502).json({ error: "Mochi couldn't make a lesson right now. Please try again." });
   }
 });
 

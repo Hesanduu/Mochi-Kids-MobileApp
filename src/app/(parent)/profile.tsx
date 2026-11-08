@@ -3,17 +3,21 @@ import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { ChunkyButton } from '@/components/ChunkyButton';
 import { colors, fonts, radius } from '@/constants/theme';
 import { useAuth } from '@/context/AuthContext';
+import { useChildren } from '@/context/ChildrenContext';
 import { hasPassword, logOut } from '@/lib/auth';
+import { MAX_CHILDREN } from '@/lib/children';
 
-export default function AccountScreen() {
+export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { children, selectedChild, selectChild, loading } = useChildren();
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={[styles.content, { paddingTop: insets.top + 24 }]}>
-      <Text style={styles.title}>Account</Text>
+      <Text style={styles.title}>Profile</Text>
 
       <View style={styles.card}>
         <View style={[styles.row, styles.rowDivider]}>
@@ -67,6 +71,51 @@ export default function AccountScreen() {
         )}
       </View>
 
+      <Text style={styles.sectionTitle}>Children</Text>
+
+      {children.length > 0 ? (
+        <View style={styles.card}>
+          {children.map((child, index) => {
+            const selected = child.id === selectedChild?.id;
+            return (
+              <Pressable
+                key={child.id}
+                onPress={() => selectChild(child.id)}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: selected }}
+                accessibilityLabel={`${child.nickname}, age ${child.ageBand}`}
+                style={[styles.row, index < children.length - 1 && styles.rowDivider]}
+              >
+                <View style={[styles.iconTile, { backgroundColor: colors.yellowSoft }]}>
+                  <SymbolView name={{ ios: 'face.smiling', android: 'mood', web: 'mood' }} size={22} tintColor={colors.text} />
+                </View>
+                <View style={styles.rowText}>
+                  <Text style={styles.value}>{child.nickname}</Text>
+                  <Text style={styles.caption}>Age {child.ageBand}</Text>
+                </View>
+                {selected ? (
+                  <SymbolView
+                    name={{ ios: 'checkmark.circle.fill', android: 'check_circle', web: 'check_circle' }}
+                    size={24}
+                    tintColor={colors.primary}
+                  />
+                ) : null}
+              </Pressable>
+            );
+          })}
+        </View>
+      ) : null}
+
+      {!loading && children.length < MAX_CHILDREN ? (
+        <ChunkyButton
+          label="Add a child"
+          variant="fun"
+          height={52}
+          onPress={() => router.push('/add-child')}
+          icon={<SymbolView name={{ ios: 'plus', android: 'add', web: 'add' }} size={18} tintColor={colors.text} />}
+        />
+      ) : null}
+
       <Pressable
         onPress={logOut}
         accessibilityRole="button"
@@ -100,6 +149,12 @@ const styles = StyleSheet.create({
     fontFamily: fonts.heading,
     fontSize: 28,
     lineHeight: 36,
+    color: colors.text,
+  },
+  sectionTitle: {
+    fontFamily: fonts.heading,
+    fontSize: 21,
+    lineHeight: 28,
     color: colors.text,
   },
   card: {

@@ -28,6 +28,7 @@ export const colors = {
   dividerSoft: '#EEF2F5', // line between rows inside a card
   greenDark: '#2F7D22', // green icons on light green backgrounds
   focusRing: 'rgba(3, 166, 255, 0.18)', // soft glow around a focused input
+  mochiHand: '#BFE3EA', // Mochi's clapping hands in the celebration
 } as const;
 
 // In React Native each font weight is its own font family name.

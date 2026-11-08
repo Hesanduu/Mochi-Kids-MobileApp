@@ -25,7 +25,7 @@ export default function ChangePasswordScreen() {
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
 
-  const goBack = () => (router.canGoBack() ? router.back() : router.replace('/account'));
+  const goBack = () => (router.canGoBack() ? router.back() : router.replace('/profile'));
 
   const handleChange = async () => {
     const nextErrors: FieldErrors = {};
@@ -60,7 +60,7 @@ export default function ChangePasswordScreen() {
         ]}
         keyboardShouldPersistTaps="handled"
       >
-        <ScreenBanner onBack={goBack} backLabel="Back to account" />
+        <ScreenBanner onBack={goBack} backLabel="Back to profile" />
 
         <Text style={styles.title}>Change password</Text>
 

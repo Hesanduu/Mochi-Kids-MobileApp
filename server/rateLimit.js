@@ -1,13 +1,13 @@
-// A tiny in-memory rate limiter: each device (IP address) gets a fixed number of
+// A tiny in-memory rate limiter: each parent account gets a fixed number of
 // requests per hour. It protects your API bill if something loops by mistake.
 // It resets when the server restarts, which is fine for development.
 
 export function rateLimit({ max, windowMs = 60 * 60 * 1000 }) {
-  const hits = new Map(); // ip -> { count, resetAt }
+  const hits = new Map(); // parent -> { count, resetAt }
 
   return (req, res, next) => {
     const now = Date.now();
-    const key = req.ip ?? 'unknown';
+    const key = req.uid ?? req.ip ?? 'unknown'; // req.uid comes from requireLogin
     let entry = hits.get(key);
 
     if (!entry || now > entry.resetAt) {

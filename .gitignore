@@ -58,3 +58,8 @@ design/
 # Firebase app files: kept off GitHub (public repo). EAS still gets them via .easignore.
 google-services.json
 GoogleService-Info.plist
+
+
+# Firebase Admin key for the server: a real secret. Never commit or upload it.
+service-account.json
+server/service-account.json

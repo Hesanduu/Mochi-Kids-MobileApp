@@ -1,5 +1,6 @@
 // Talks to our own server (server/), never to Unsplash or OpenAI directly.
 // The server holds the API keys and runs the child-safety checks.
+import { auth } from '@/lib/firebase';
 
 // Set in the app's .env, e.g. EXPO_PUBLIC_API_URL=http://192.168.1.20:3000
 // (EXPO_PUBLIC_ variables are built into the app, so only put addresses here, never keys.)
@@ -21,12 +22,37 @@ export type Picture = {
   mimeType: string;
 };
 
+export type GeneratedLesson = {
+  title: string;
+  topic: string;
+  items: {
+    id: string;
+    word: string;
+    question: string;
+    imageBase64: string;
+    mimeType: string;
+  }[];
+};
+
 // A friendly message we can show straight to the child or parent.
 export class FriendlyError extends Error {}
 
-async function request<T>(path: string, init: RequestInit, timeoutMs: number): Promise<T> {
+type RequestOptions = Omit<RequestInit, 'headers'> & { headers?: Record<string, string> };
+
+async function request<T>(path: string, init: RequestOptions, timeoutMs: number): Promise<T> {
   if (!API_URL) {
     throw new FriendlyError('Mochi is not connected yet. Add EXPO_PUBLIC_API_URL to .env.');
+  }
+
+  // Every request proves which parent is logged in. getIdToken renews the
+  // token by itself when it is about to expire.
+  const user = auth.currentUser;
+  if (!user) throw new FriendlyError('Please log in again to use this.');
+  let token: string;
+  try {
+    token = await user.getIdToken();
+  } catch {
+    throw new FriendlyError("Mochi can't connect right now. Please try again in a moment.");
   }
 
   // Give up if the server takes too long.
@@ -35,7 +61,11 @@ async function request<T>(path: string, init: RequestInit, timeoutMs: number): P
 
   let response: Response;
   try {
-    response = await fetch(`${API_URL}${path}`, { ...init, signal: controller.signal });
+    response = await fetch(`${API_URL}${path}`, {
+      ...init,
+      headers: { ...init.headers, Authorization: `Bearer ${token}` },
+      signal: controller.signal,
+    });
   } catch {
     // Network error or timeout: server not running, wrong IP, or a different Wi-Fi.
     throw new FriendlyError("Mochi can't connect right now. Please try again in a moment.");
@@ -69,6 +99,18 @@ export function generatePicture(prompt: string) {
       body: JSON.stringify({ prompt }),
     },
     90_000, // drawing takes a while
+  );
+}
+
+export function generateLesson(topic: string) {
+  return request<GeneratedLesson>(
+    '/api/lessons/generate',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ topic }),
+    },
+    240_000, // writing a lesson and drawing 6 pictures takes a while
   );
 }
 
