@@ -29,6 +29,11 @@ export const colors = {
   greenDark: '#2F7D22', // green icons on light green backgrounds
   focusRing: 'rgba(3, 166, 255, 0.18)', // soft glow around a focused input
   mochiHand: '#BFE3EA', // Mochi's clapping hands in the celebration
+  overlay: 'rgba(27, 58, 87, 0.45)', // dims the screen behind the grown-ups check
+  coral: '#FF9E80', // Home: Activities window
+  coralDark: '#D9603A',
+  lilac: '#B79CFF', // Home: Plan window
+  lilacDark: '#7B5CE0',
 } as const;
 
 // In React Native each font weight is its own font family name.

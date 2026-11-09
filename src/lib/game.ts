@@ -6,7 +6,7 @@ export type GamePage = {
   choices: LessonItem[]; // always 4, in random order
 };
 
-// What happened on one page. Stage 3 saves these to the database.
+// What happened on one page. Saved by src/lib/attempts.ts.
 export type PageResult = {
   answer: string;
   stars: number;
@@ -14,8 +14,15 @@ export type PageResult = {
   wrongPicks: string[];
 };
 
+// Links a finished activity back to the weekly plan that scheduled it.
+export type PlanLink = { weekId: string; itemId: string };
+
+// How an activity was opened. From the normal library, both are empty.
+export type Practice = { focusWords: string[]; planLink?: PlanLink };
+
 export const CHOICES_PER_PAGE = 4;
 export const MAX_STARS_PER_PAGE = 3;
+const MIN_ITEMS_WITH_FOCUS = 5;
 
 const PRAISE = ['Yay! You did it!', 'Great job!', 'Wow, you got it!', 'Hooray! That is right!', 'You are a star!'];
 
@@ -32,9 +39,27 @@ export function shuffle<T>(list: T[]) {
   return copy;
 }
 
-// One page per item: the right answer plus 3 others from the same lesson.
-export function buildPages(lesson: Lesson): GamePage[] {
-  return shuffle(lesson.items).map((item) => {
+// Reads how an activity was opened from its screen address.
+export function parsePractice(params: { planWeek?: string; planItem?: string; focus?: string }): Practice {
+  const focusWords = params.focus ? params.focus.split('|').filter(Boolean) : [];
+  const planLink = params.planWeek && params.planItem ? { weekId: params.planWeek, itemId: params.planItem } : undefined;
+  return { focusWords, planLink };
+}
+
+// Which words to use. A planned practice starts with its tricky words and tops up
+// to a short session. Otherwise it's all the words, in random order.
+export function chooseItems<T extends { word: string }>(items: T[], focusWords: string[]): T[] {
+  const isFocus = (item: T) => focusWords.includes(item.word);
+  const focus = items.filter(isFocus);
+  if (focus.length === 0) return shuffle(items);
+
+  const others = shuffle(items.filter((item) => !isFocus(item)));
+  return [...shuffle(focus), ...others].slice(0, Math.max(focus.length, MIN_ITEMS_WITH_FOCUS));
+}
+
+// One page per chosen item: the right answer plus 3 others from the same lesson.
+export function buildPages(lesson: Lesson, focusWords: string[] = []): GamePage[] {
+  return chooseItems(lesson.items, focusWords).map((item) => {
     const others = shuffle(lesson.items.filter((other) => other.id !== item.id));
     return { item, choices: shuffle([item, ...others.slice(0, CHOICES_PER_PAGE - 1)]) };
   });

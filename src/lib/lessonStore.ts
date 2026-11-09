@@ -105,11 +105,14 @@ export function useSavedLessons(kind: SavedKind = 'lessons') {
     return onSnapshot(
       query(savedCollection(uid, kind), orderBy('createdAt', 'desc')),
       (snapshot) => {
-        const lessons = snapshot.docs.map((d) => ({
-          id: d.id,
-          title: d.data().title as string,
-          pageCount: (d.data().items as unknown[]).length,
-        }));
+        const lessons = snapshot.docs
+          // Anything the agent made stays hidden until a parent approves it.
+          .filter((d) => d.data().status !== 'draft')
+          .map((d) => ({
+            id: d.id,
+            title: d.data().title as string,
+            pageCount: (d.data().items as unknown[]).length,
+          }));
         setResult({ uid, lessons });
       },
       () => setResult({ uid, lessons: [] }),
@@ -128,7 +131,7 @@ export async function loadSavedLesson(uid: string, lessonId: string, kind: Saved
       30_000,
     );
     const data = lessonSnapshot.data();
-    if (!data) throw new Error('Lesson not found');
+    if (!data) throw new FriendlyError('This activity isn\u2019t available any more.');
 
     const items = (data.items as { id: string; word: string; question: string }[]).map((item): LessonItem => {
       const picture = picturesSnapshot.docs.find((d) => d.id === item.id)?.data();
@@ -140,7 +143,8 @@ export async function loadSavedLesson(uid: string, lessonId: string, kind: Saved
     });
 
     return { id: lessonId, title: data.title, items };
-  } catch {
+  } catch (err) {
+    if (err instanceof FriendlyError) throw err;
     throw new FriendlyError("Mochi can't open this lesson right now. Please check your internet and try again.");
   }
 }

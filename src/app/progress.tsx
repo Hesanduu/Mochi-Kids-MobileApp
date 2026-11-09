@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { ScreenBanner } from '@/components/ScreenBanner';
 import { SegmentedToggle } from '@/components/SegmentedToggle';
 import { colors, fonts, radius, TAP_TARGET } from '@/constants/theme';
 import { useChildren } from '@/context/ChildrenContext';
@@ -22,10 +23,19 @@ const PARTS: { value: Part; label: string }[] = [
 export default function ProgressScreen() {
   const insets = useSafeAreaInsets();
   const { selectedChild } = useChildren();
-  const [part, setPart] = useState<Part>('activities');
+  // The Plan tab's two tiles open this screen on the matching part.
+  const { part: startingPart } = useLocalSearchParams<{ part?: string }>();
+  const [part, setPart] = useState<Part>(startingPart === 'speaking' ? 'speaking' : 'activities');
+
+  const goBack = () => (router.canGoBack() ? router.back() : router.replace('/plan'));
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={[styles.content, { paddingTop: insets.top + 24 }]}>
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={[styles.content, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 24 }]}
+    >
+      <ScreenBanner onBack={goBack} backLabel="Back to plan" />
+
       <Text style={styles.title}>{selectedChild ? `${selectedChild.nickname}'s progress` : 'Progress'}</Text>
 
       {!selectedChild ? (
@@ -139,7 +149,6 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 24,
-    paddingBottom: 24,
     gap: 14,
   },
   title: {

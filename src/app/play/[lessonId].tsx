@@ -15,8 +15,9 @@ import { useAuth } from '@/context/AuthContext';
 import { useChildren } from '@/context/ChildrenContext';
 import { getPresetLesson, type Lesson, type LessonItem } from '@/data/lessons';
 import { errorMessage } from '@/lib/api';
+import { markPlanItemDone } from '@/lib/agent';
 import { saveAttempt } from '@/lib/attempts';
-import { buildPages, CHOICES_PER_PAGE, randomPraise, starsForTry, type PageResult } from '@/lib/game';
+import { buildPages, CHOICES_PER_PAGE, parsePractice, randomPraise, starsForTry, type PageResult, type Practice } from '@/lib/game';
 import { loadSavedLesson } from '@/lib/lessonStore';
 import { speak, speakAndWait, stopSpeaking } from '@/lib/voice';
 
@@ -29,21 +30,27 @@ const GENTLE_LINE = "That's the correct answer. Let's try that again later.";
 const ALL_DONE_LINE = 'You finished the lesson. Well done!';
 
 export default function PlayScreen() {
-  const { lessonId } = useLocalSearchParams<{ lessonId: string }>();
+  const { lessonId, ...params } = useLocalSearchParams<{
+    lessonId: string;
+    planWeek?: string;
+    planItem?: string;
+    focus?: string;
+  }>();
+  const practice = parsePractice(params);
   const preset = getPresetLesson(lessonId);
   const { user } = useAuth();
   const { selectedChild, loading } = useChildren();
 
   if (loading) return null;
   if (!user || !selectedChild) return <Redirect href="/activities" />;
-  if (preset) return <LessonGame lesson={preset} uid={user.uid} childId={selectedChild.id} />;
-  return <SavedLessonGame lessonId={lessonId} uid={user.uid} childId={selectedChild.id} />;
+  if (preset) return <LessonGame lesson={preset} uid={user.uid} childId={selectedChild.id} practice={practice} />;
+  return <SavedLessonGame lessonId={lessonId} uid={user.uid} childId={selectedChild.id} practice={practice} />;
 }
 
-type SavedLessonGameProps = { lessonId: string; uid: string; childId: string };
+type SavedLessonGameProps = { lessonId: string; uid: string; childId: string; practice: Practice };
 
 // AI lessons are stored in Firestore, so their pictures are loaded first.
-function SavedLessonGame({ lessonId, uid, childId }: SavedLessonGameProps) {
+function SavedLessonGame({ lessonId, uid, childId, practice }: SavedLessonGameProps) {
   const [lesson, setLesson] = useState<Lesson | null>(null);
   const [error, setError] = useState<string>();
 
@@ -57,7 +64,7 @@ function SavedLessonGame({ lessonId, uid, childId }: SavedLessonGameProps) {
     };
   }, [uid, lessonId]);
 
-  if (lesson) return <LessonGame lesson={lesson} uid={uid} childId={childId} />;
+  if (lesson) return <LessonGame lesson={lesson} uid={uid} childId={childId} practice={practice} />;
 
   return (
     <View style={styles.loading}>
@@ -76,9 +83,11 @@ function SavedLessonGame({ lessonId, uid, childId }: SavedLessonGameProps) {
   );
 }
 
-function LessonGame({ lesson, uid, childId }: { lesson: Lesson; uid: string; childId: string }) {
+type LessonGameProps = { lesson: Lesson; uid: string; childId: string; practice: Practice };
+
+function LessonGame({ lesson, uid, childId, practice }: LessonGameProps) {
   const insets = useSafeAreaInsets();
-  const [pages, setPages] = useState(() => buildPages(lesson));
+  const [pages, setPages] = useState(() => buildPages(lesson, practice.focusWords));
   const [pageIndex, setPageIndex] = useState(0);
   const [wrongPicks, setWrongPicks] = useState<LessonItem[]>([]);
   const [phase, setPhase] = useState<Phase>('asking');
@@ -115,7 +124,10 @@ function LessonGame({ lesson, uid, childId }: { lesson: Lesson; uid: string; chi
   const goToNextPage = (latestResults: PageResult[]) => {
     if (pageIndex + 1 >= pages.length) {
       // Only finished lessons are saved. The score shows either way.
-      saveAttempt(uid, childId, lesson, latestResults, startedAt.current).catch(() => setSaveFailed(true));
+      saveAttempt(uid, childId, lesson, latestResults, startedAt.current, practice.planLink).catch(() =>
+        setSaveFailed(true),
+      );
+      if (practice.planLink) markPlanItemDone(uid, childId, practice.planLink);
       setPhase('done');
       speak(ALL_DONE_LINE);
       return;
@@ -170,7 +182,7 @@ function LessonGame({ lesson, uid, childId }: { lesson: Lesson; uid: string; chi
     setWrongPicks([]);
     setPageIndex(0);
     setPhase('asking');
-    setPages(buildPages(lesson)); // new pages, so the effect above asks the first question
+    setPages(buildPages(lesson, practice.focusWords)); // new pages, so the effect above asks the first question
   };
 
   const leave = () => (router.canGoBack() ? router.back() : router.replace('/activities'));

@@ -6,7 +6,7 @@ import { addDoc, collection, onSnapshot, orderBy, query, serverTimestamp } from 
 import { useAuth } from '@/context/AuthContext';
 import type { Lesson } from '@/data/lessons';
 import { db } from '@/lib/firebase';
-import { MAX_STARS_PER_PAGE, scorePercent, type PageResult } from '@/lib/game';
+import { MAX_STARS_PER_PAGE, scorePercent, type PageResult, type PlanLink } from '@/lib/game';
 
 export type Attempt = {
   id: string;
@@ -32,6 +32,7 @@ export async function saveAttempt(
   lesson: Lesson,
   results: PageResult[],
   startedAt: number,
+  planLink?: PlanLink,
 ) {
   await addDoc(attemptsCollection(uid, childId), {
     lessonId: lesson.id,
@@ -42,6 +43,7 @@ export async function saveAttempt(
     stars: results.reduce((total, page) => total + page.stars, 0),
     maxStars: results.length * MAX_STARS_PER_PAGE,
     pages: results,
+    ...(planLink && { planWeek: planLink.weekId, planItem: planLink.itemId }),
   });
 }
 

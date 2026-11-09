@@ -128,6 +128,20 @@ export function checkSpeech(word: string, audioBase64: string) {
   );
 }
 
+// Asks the Learning Path Agent to start. It answers quickly and keeps working on
+// the server, so the screen watches Firestore for the result.
+export function runAgent(childId: string) {
+  return request<{ status: string; weekId: string }>(
+    '/api/agent/run',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ childId }),
+    },
+    30_000,
+  );
+}
+
 // Turns any error into something safe to show on screen.
 export function errorMessage(err: unknown) {
   return err instanceof FriendlyError ? err.message : 'Something went wrong. Please try again.';

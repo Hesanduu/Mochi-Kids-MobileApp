@@ -7,7 +7,8 @@ import { Nunito_500Medium, Nunito_600SemiBold, Nunito_700Bold, Nunito_800ExtraBo
 
 import { colors } from '@/constants/theme';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
-import { ChildrenProvider } from '@/context/ChildrenContext';
+import { ChildrenProvider, useChildren } from '@/context/ChildrenContext';
+import { useNotifications } from '@/lib/notifications';
 
 // Keep the splash screen visible until the fonts and login state are ready,
 // so the app never flashes the wrong font or the wrong screen.
@@ -36,6 +37,9 @@ function RootNavigator({ fontsReady }: { fontsReady: boolean }) {
   const { user, initializing, needsConsent } = useAuth();
   const ready = fontsReady && !initializing;
   const loggedIn = user !== null;
+  const { agentEnabled } = useChildren();
+
+  useNotifications(ready && user && !needsConsent ? user.uid : null, agentEnabled);
 
   useEffect(() => {
     if (ready) SplashScreen.hideAsync();
@@ -72,6 +76,10 @@ function RootNavigator({ fontsReady }: { fontsReady: boolean }) {
           <Stack.Screen name="change-password" />
           <Stack.Screen name="add-child" />
           <Stack.Screen name="voice-consent" />
+          <Stack.Screen name="agent-consent" />
+          <Stack.Screen name="progress" />
+          <Stack.Screen name="report/[weekId]" />
+          <Stack.Screen name="plan-review/[weekId]" />
           <Stack.Screen name="speech-history/[setId]" />
           <Stack.Screen name="speak/[setId]" options={{ gestureEnabled: false }} />
           <Stack.Screen name="create-lesson" />

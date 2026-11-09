@@ -3,10 +3,14 @@
 // Run with: npm run dev   (reads keys from server/.env)
 import express from 'express';
 
-import { checkSpeech, drawPicture, planLesson } from './ai.js';
+import { checkSpeech, drawPicture } from './ai.js';
+import { startAgentRun } from './agent/learningPath.js';
+import { startWeeklyTimer } from './agent/scheduler.js';
+import { makeLesson } from './lessonMaker.js';
+import { notifyParent } from './notify.js';
 import { rateLimit } from './rateLimit.js';
 import { requireLogin } from './requireLogin.js';
-import { checkLessonTopic, checkRequest, GENTLE_NO, lessonHasBlockedWord, LESSON_NO } from './safety.js';
+import { checkRequest, GENTLE_NO } from './safety.js';
 
 const app = express();
 
@@ -109,34 +113,33 @@ app.post('/api/images/generate', rateLimit({ max: 10 }), async (req, res) => {
 
 // ---------- Create a whole lesson with AI from one topic word ----------
 app.post('/api/lessons/generate', rateLimit({ max: 5 }), async (req, res) => {
-  const check = await checkLessonTopic(req.body?.topic);
-  if (!check.ok) return res.status(400).json({ error: check.message });
-
   try {
-    const plan = await planLesson(check.text);
-    if (!plan || lessonHasBlockedWord(plan)) return res.status(400).json({ error: LESSON_NO });
-
-    const pictures = await Promise.all(
-      plan.items.map((item) => drawPicture(item.picture, { forLesson: true })),
-    );
-    // No half-finished lessons: every picture must have passed its safety check.
-    if (pictures.some((picture) => !picture)) {
-      return res.status(400).json({ error: "Mochi couldn't draw that lesson. Please try a different topic." });
-    }
-
-    res.json({
-      title: plan.title,
-      topic: check.text,
-      items: plan.items.map((item, index) => ({
-        id: `item-${index + 1}`,
-        word: item.word.trim().replace(/^./, (first) => first.toUpperCase()),
-        question: item.question.trim(),
-        ...pictures[index],
-      })),
-    });
+    const result = await makeLesson(req.body?.topic);
+    if (!result.ok) return res.status(400).json({ error: result.error });
+    res.json(result.lesson);
   } catch (err) {
     console.error('AI lesson failed:', err.message);
     res.status(502).json({ error: "Mochi couldn't make a lesson right now. Please try again." });
+  }
+});
+
+// ---------- Ask the Learning Path Agent to start on a child's week ----------
+// The parent comes from the login token, never from the request, so a parent can
+// only ever start a run for their own child.
+app.post('/api/agent/run', rateLimit({ max: 5 }), async (req, res) => {
+  const childId = req.body?.childId;
+  if (typeof childId !== 'string' || !/^[A-Za-z0-9]{1,64}$/.test(childId)) {
+    return res.status(400).json({ error: 'Something went wrong. Please try again.' });
+  }
+
+  try {
+    const { httpStatus, body, done } = await startAgentRun(req.uid, childId);
+    res.status(httpStatus).json(body);
+    // When the agent has finished, tell the parent's phones.
+    done?.then((finished) => finished && notifyParent(req.uid));
+  } catch (err) {
+    console.error('Could not start the agent:', err.message);
+    res.status(502).json({ error: "Mochi couldn't start planning right now. Please try again." });
   }
 });
 
@@ -144,4 +147,5 @@ const port = Number(process.env.PORT) || 3000;
 // 0.0.0.0 = reachable from other devices on your Wi-Fi (your phone).
 app.listen(port, '0.0.0.0', () => {
   console.log(`Mochi server running on http://localhost:${port}`);
+  startWeeklyTimer();
 });

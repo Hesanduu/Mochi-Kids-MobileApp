@@ -1,19 +1,40 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ChunkyButton } from '@/components/ChunkyButton';
+import { ParentGate } from '@/components/ParentGate';
 import { colors, fonts, radius } from '@/constants/theme';
 import { useAuth } from '@/context/AuthContext';
 import { useChildren } from '@/context/ChildrenContext';
+import { disableAgent } from '@/lib/agent';
+import { errorMessage } from '@/lib/api';
 import { hasPassword, logOut } from '@/lib/auth';
 import { MAX_CHILDREN } from '@/lib/children';
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { children, selectedChild, selectChild, loading } = useChildren();
+  const { children, selectedChild, selectChild, agentEnabled, loading } = useChildren();
+  const [gateOpen, setGateOpen] = useState(false);
+
+  // Switching on explains what is shared first. Both directions need a grown-up.
+  const handleAgentSwitch = (on: boolean) => {
+    if (on) router.push('/agent-consent');
+    else setGateOpen(true);
+  };
+
+  const switchOff = async () => {
+    setGateOpen(false);
+    if (!user) return;
+    try {
+      await disableAgent(user.uid);
+    } catch (err) {
+      Alert.alert('Could not switch off', errorMessage(err));
+    }
+  };
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={[styles.content, { paddingTop: insets.top + 24 }]}>
@@ -115,6 +136,29 @@ export default function ProfileScreen() {
           icon={<SymbolView name={{ ios: 'plus', android: 'add', web: 'add' }} size={18} tintColor={colors.text} />}
         />
       ) : null}
+
+      <View style={[styles.card, styles.row]}>
+        <View style={[styles.iconTile, { backgroundColor: colors.skySoft }]}>
+          <SymbolView
+            name={{ ios: 'sparkles', android: 'auto_awesome', web: 'auto_awesome' }}
+            size={20}
+            tintColor={colors.primary}
+          />
+        </View>
+        <View style={styles.rowText}>
+          <Text style={styles.value}>Mochi&apos;s weekly plans</Text>
+          <Text style={styles.caption}>{agentEnabled ? 'On' : 'Off'}</Text>
+        </View>
+        <Switch
+          value={agentEnabled}
+          onValueChange={handleAgentSwitch}
+          trackColor={{ true: colors.primary, false: colors.divider }}
+          thumbColor={colors.surface}
+          accessibilityLabel="Mochi's weekly plans"
+        />
+      </View>
+
+      {gateOpen ? <ParentGate onPass={switchOff} onCancel={() => setGateOpen(false)} /> : null}
 
       <Pressable
         onPress={logOut}

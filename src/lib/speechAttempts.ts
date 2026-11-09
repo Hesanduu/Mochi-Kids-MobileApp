@@ -20,7 +20,7 @@ import {
 import { useAuth } from '@/context/AuthContext';
 import type { TalkSet } from '@/data/talkSets';
 import { db } from '@/lib/firebase';
-import { scorePercent } from '@/lib/game';
+import { scorePercent, type PlanLink } from '@/lib/game';
 import { MAX_STARS_PER_WORD, type TalkResult } from '@/lib/talkGame';
 
 export type SpeechWordResult = {
@@ -62,6 +62,7 @@ export async function saveSpeechAttempt(
   set: TalkSet,
   results: TalkResult[],
   startedAt: number,
+  planLink?: PlanLink,
 ) {
   const batch = writeBatch(db);
 
@@ -81,6 +82,7 @@ export async function saveSpeechAttempt(
       slightSlip,
       gotIt,
     })),
+    ...(planLink && { planWeek: planLink.weekId, planItem: planLink.itemId }),
   });
 
   for (const result of results) {
@@ -99,7 +101,7 @@ export async function saveSpeechAttempt(
 
 // Live list from one of a child's collections. The result remembers whose it is,
 // so one child's words never show for another.
-function useChildList<T>(
+export function useChildList<T>(
   childId: string | undefined,
   name: string,
   order: QueryConstraint,

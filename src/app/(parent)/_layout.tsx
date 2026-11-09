@@ -18,7 +18,7 @@ const BAR_PADDING_BOTTOM_MIN = 8;
 // iPhones report 34px at the bottom, but the home indicator only needs about half.
 const IOS_BOTTOM_MAX = 16;
 
-// Bottom tabs for the parent area: Home / Activities / Talk / Progress / Profile.
+// Bottom tabs for the parent area: Home / Activities / Plan / Talk / Profile.
 export default function ParentLayout() {
   const insets = useSafeAreaInsets();
 
@@ -48,11 +48,8 @@ export default function ParentLayout() {
         name="activities"
         options={{ title: 'Activities', tabBarIcon: tabIcon('square.grid.2x2.fill', 'apps') }}
       />
+      <Tabs.Screen name="plan" options={{ title: 'Plan', tabBarIcon: tabIcon('calendar', 'calendar_month') }} />
       <Tabs.Screen name="talk" options={{ title: 'Talk', tabBarIcon: tabIcon('mic.fill', 'mic') }} />
-      <Tabs.Screen
-        name="progress"
-        options={{ title: 'Progress', tabBarIcon: tabIcon('chart.bar.fill', 'bar_chart') }}
-      />
       <Tabs.Screen
         name="profile"
         options={{ title: 'Profile', tabBarIcon: tabIcon('person.crop.circle.fill', 'account_circle') }}

@@ -11,6 +11,7 @@ const IMAGE_MODEL = 'gpt-image-2.6-flare'; // fast everyday image model
 const LESSON_MODEL = 'gpt-6-luna'; // writes the words of a lesson
 const LISTENING_MODEL = 'gpt-transcribe'; // writes down what it hears
 const SPEECH_JUDGE_MODEL = 'gpt-6-luna'; // compares that with the target word
+const AGENT_MODEL = 'gpt-6-luna'; // the Learning Path Agent
 
 const LESSON_ITEM_COUNT = 6;
 // A Firestore document can hold about 1 MB, and the picture must fit inside one.
@@ -31,6 +32,30 @@ function getClient() {
 async function isFlagged(input) {
   const result = await getClient().moderations.create({ model: MODERATION_MODEL, input });
   return result.results.some((r) => r.flagged);
+}
+
+export function isTextFlagged(text) {
+  return isFlagged(text);
+}
+
+// One step of the Learning Path Agent: the AI reads everything so far and answers
+// with its next action. store: false means OpenAI keeps no copy, so the AI's private
+// reasoning comes back encrypted and is sent along with the next step.
+export async function agentTurn({ instructions, input, tools, model = AGENT_MODEL }) {
+  const response = await getClient().responses.create({
+    model,
+    store: false,
+    include: ['reasoning.encrypted_content'],
+    instructions,
+    input,
+    tools,
+    parallel_tool_calls: false,
+    max_output_tokens: 4000,
+  });
+  if (response.status !== 'completed') {
+    throw new Error(`Agent step did not complete (status: ${response.status})`);
+  }
+  return response.output;
 }
 
 const JUDGE_INSTRUCTIONS = `You are a strict safety checker for a learning app used by preschool children aged 3 to 5.

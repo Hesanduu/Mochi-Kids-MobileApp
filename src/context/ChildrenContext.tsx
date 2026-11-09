@@ -12,6 +12,8 @@ type ChildrenContextValue = {
   selectChild: (childId: string) => void;
   // True once a parent has agreed to the voice check for Talk with Mochi.
   voiceConsent: boolean;
+  // True once a parent has switched on Mochi's weekly plans.
+  agentEnabled: boolean;
   // True until the first answer from Firestore arrives.
   loading: boolean;
 };
@@ -21,7 +23,7 @@ const ChildrenContext = createContext<ChildrenContextValue | null>(null);
 // Each result remembers which parent it belongs to, so one parent's children
 // can never show for a moment after a different parent logs in.
 type ChildrenResult = { uid: string; list: Child[] };
-type SelectionResult = { uid: string; childId: string | null; voiceConsent: boolean };
+type SelectionResult = { uid: string; childId: string | null; voiceConsent: boolean; agentEnabled: boolean };
 
 export function ChildrenProvider({ children: content }: { children: ReactNode }) {
   const { user } = useAuth();
@@ -52,8 +54,9 @@ export function ChildrenProvider({ children: content }: { children: ReactNode })
           uid,
           childId: snapshot.data()?.selectedChildId ?? null,
           voiceConsent: Boolean(snapshot.data()?.voiceConsentAt),
+          agentEnabled: snapshot.data()?.agentEnabled === true,
         }),
-      () => setSelectionResult({ uid, childId: null, voiceConsent: false }),
+      () => setSelectionResult({ uid, childId: null, voiceConsent: false, agentEnabled: false }),
     );
   }, [uid]);
 
@@ -61,6 +64,7 @@ export function ChildrenProvider({ children: content }: { children: ReactNode })
   const list = isCurrent ? childrenResult.list : [];
   const selectedId = isCurrent ? selectionResult.childId : null;
   const voiceConsent = isCurrent ? selectionResult.voiceConsent : false;
+  const agentEnabled = isCurrent ? selectionResult.agentEnabled : false;
 
   // The saved choice if that child exists, otherwise the first child.
   const selectedChild = list.find((child) => child.id === selectedId) ?? list[0] ?? null;
@@ -76,7 +80,7 @@ export function ChildrenProvider({ children: content }: { children: ReactNode })
   const loading = uid !== undefined && !isCurrent;
 
   return (
-    <ChildrenContext.Provider value={{ children: list, selectedChild, selectChild, voiceConsent, loading }}>
+    <ChildrenContext.Provider value={{ children: list, selectedChild, selectChild, voiceConsent, agentEnabled, loading }}>
       {content}
     </ChildrenContext.Provider>
   );

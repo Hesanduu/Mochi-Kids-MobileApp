@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet,
-  Text, View, } from 'react-native';
+  Text, useWindowDimensions, View, } from 'react-native';
 import { Link } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -12,8 +12,23 @@ import { TextField } from '@/components/TextField';
 import { colors, fonts } from '@/constants/theme';
 import { friendlyAuthError, logIn, looksLikeEmail } from '@/lib/auth';
 
+// The header takes whatever height the form leaves free, so the whole screen
+// fits without scrolling. The form needs about this much room.
+const FORM_HEIGHT = 518;
+const MIN_HEADER_HEIGHT = 130;
+const MAX_HEADER_HEIGHT = 340; // tall phones: the header takes the spare room, not the form
+const MAX_MOCHI_SIZE = 236;
+
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
+  const { height } = useWindowDimensions();
+  // iPhones report more room at the bottom than the home bar really needs.
+  const bottomPadding = Platform.OS === 'ios' ? Math.min(insets.bottom, 20) : Math.max(insets.bottom, 12);
+  const headerHeight = Math.min(
+    Math.max(height - insets.top - bottomPadding - FORM_HEIGHT, MIN_HEADER_HEIGHT),
+    MAX_HEADER_HEIGHT,
+  );
+  const mochiSize = Math.min(headerHeight - 44, MAX_MOCHI_SIZE);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [emailError, setEmailError] = useState<string>();
@@ -48,27 +63,26 @@ export default function LoginScreen() {
     >
       <ScrollView
         style={styles.flex}
-        contentContainerStyle={[styles.scroll, { paddingBottom: Math.max(insets.bottom, 16) }]}
+        contentContainerStyle={[styles.scroll, { paddingBottom: bottomPadding }]}
         keyboardShouldPersistTaps="handled"
       >
         {/* Light blue header with Mochi */}
-        <View style={[styles.header, { height: 280 + insets.top }]}>
+        <View style={[styles.header, { height: headerHeight + insets.top }]}>
           <Dots
             dots={[
-              { size: 16, color: colors.yellow, left: 34, top: insets.top + 42 },
-              { size: 12, color: colors.green, right: 46, top: insets.top + 64 },
-              { size: 10, color: colors.sky, left: 70, top: insets.top + 164 },
-              { size: 9, color: colors.red, opacity: 0.7, right: 74, top: insets.top + 178 },
+              { size: 16, color: colors.yellow, left: 34, top: insets.top + headerHeight * 0.15 },
+              { size: 12, color: colors.green, right: 46, top: insets.top + headerHeight * 0.23 },
+              { size: 10, color: colors.sky, left: 70, top: insets.top + headerHeight * 0.59 },
+              { size: 9, color: colors.red, opacity: 0.7, right: 74, top: insets.top + headerHeight * 0.64 },
             ]}
           />
-          <View style={styles.mochiShadow} />
-          <Mochi size={236} style={styles.mochi} />
+          <View style={[styles.mochiShadow, { width: mochiSize * 0.76 }]} />
+          <Mochi size={mochiSize} style={styles.mochi} />
         </View>
 
         <View style={styles.body}>
           <View style={styles.titleBlock}>
             <Text style={styles.title}>Welcome back!</Text>
-            <Text style={styles.subtitle}>Log in to plan learning time with Mochi.</Text>
           </View>
 
           <View style={styles.form}>
@@ -155,7 +169,6 @@ const styles = StyleSheet.create({
   mochiShadow: {
     position: 'absolute',
     bottom: 18,
-    width: 180,
     height: 26,
     borderRadius: 13,
     backgroundColor: colors.skyShadow,
@@ -165,13 +178,12 @@ const styles = StyleSheet.create({
   },
   body: {
     flexGrow: 1,
-    paddingTop: 26,
+    paddingTop: 18,
     paddingHorizontal: 28,
-    gap: 22,
+    gap: 16,
   },
   titleBlock: {
     alignItems: 'center',
-    gap: 2,
   },
   title: {
     fontFamily: fonts.heading,
@@ -179,15 +191,8 @@ const styles = StyleSheet.create({
     lineHeight: 40,
     color: colors.text,
   },
-  subtitle: {
-    fontFamily: fonts.body,
-    fontSize: 16,
-    lineHeight: 23,
-    color: colors.textMuted,
-    textAlign: 'center',
-  },
   form: {
-    gap: 16,
+    gap: 14,
   },
   forgot: {
     alignSelf: 'flex-end',
@@ -200,6 +205,7 @@ const styles = StyleSheet.create({
     color: colors.primary,
   },
   footer: {
+    marginTop: -12, // closer to the Google button than the normal row gap
     fontFamily: fonts.body,
     fontSize: 16,
     color: colors.textMuted,

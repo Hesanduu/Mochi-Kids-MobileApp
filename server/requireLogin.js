@@ -1,19 +1,9 @@
 // Makes sure every /api/ request comes from a logged-in parent.
 // The app sends a Firebase "ID token" (a short-lived proof of who is logged in),
 // and Firebase's official Admin library checks that it is genuine.
-import { applicationDefault, getApps, initializeApp } from 'firebase-admin/app';
-import { getAuth } from 'firebase-admin/auth';
+import { adminAuth } from './firebaseAdmin.js';
 
 const NOT_LOGGED_IN = 'Please log in again to use this.';
-
-// Set up once, on the first request. The key file's location comes from server/.env.
-function adminAuth() {
-  if (!process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-    throw new Error('GOOGLE_APPLICATION_CREDENTIALS is missing from server/.env');
-  }
-  if (getApps().length === 0) initializeApp({ credential: applicationDefault() });
-  return getAuth();
-}
 
 export async function requireLogin(req, res, next) {
   const header = req.get('authorization') ?? '';

@@ -54,7 +54,7 @@ function isBlocked(word) {
   );
 }
 
-function hasBlockedWord(text) {
+export function hasBlockedWord(text) {
   const words = normalize(text).split(' ');
   // Check single words and two-word phrases (e.g. "hot girl").
   return words.some((w, i) => isBlocked(w) || (i > 0 && BLOCKED.has(`${words[i - 1]} ${w}`)));

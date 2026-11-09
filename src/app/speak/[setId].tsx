@@ -16,8 +16,9 @@ import { colors, fonts, radius, TAP_TARGET } from '@/constants/theme';
 import { useAuth } from '@/context/AuthContext';
 import { useChildren } from '@/context/ChildrenContext';
 import { getTalkSet, talkSetFromSaved, type TalkSet, type TalkWord } from '@/data/talkSets';
+import { markPlanItemDone } from '@/lib/agent';
 import { checkSpeech, errorMessage, type SpeechResult } from '@/lib/api';
-import { randomPraise, shuffle } from '@/lib/game';
+import { chooseItems, parsePractice, randomPraise, type Practice } from '@/lib/game';
 import { loadSavedLesson } from '@/lib/lessonStore';
 import { ensureMicPermission, useListener } from '@/lib/listen';
 import { saveSpeechAttempt } from '@/lib/speechAttempts';
@@ -41,7 +42,13 @@ const TRY_LATER_LINE = "Let's try again.";
 const ALL_DONE_LINE = 'You finished. Well done!';
 
 export default function SpeakScreen() {
-  const { setId } = useLocalSearchParams<{ setId: string }>();
+  const { setId, ...params } = useLocalSearchParams<{
+    setId: string;
+    planWeek?: string;
+    planItem?: string;
+    focus?: string;
+  }>();
+  const practice = parsePractice(params);
   const { user } = useAuth();
   const { selectedChild, voiceConsent, loading } = useChildren();
   const set = getTalkSet(setId);
@@ -49,14 +56,14 @@ export default function SpeakScreen() {
   if (loading) return null;
   // The microphone is only ever used after a parent has agreed.
   if (!user || !selectedChild || !voiceConsent) return <Redirect href="/talk" />;
-  if (set) return <TalkGame set={set} uid={user.uid} childId={selectedChild.id} />;
-  return <SavedTalkGame setId={setId} uid={user.uid} childId={selectedChild.id} />;
+  if (set) return <TalkGame set={set} uid={user.uid} childId={selectedChild.id} practice={practice} />;
+  return <SavedTalkGame setId={setId} uid={user.uid} childId={selectedChild.id} practice={practice} />;
 }
 
-type SavedTalkGameProps = { setId: string; uid: string; childId: string };
+type SavedTalkGameProps = { setId: string; uid: string; childId: string; practice: Practice };
 
 // Categories made with AI are stored in Firestore, so their pictures are loaded first.
-function SavedTalkGame({ setId, uid, childId }: SavedTalkGameProps) {
+function SavedTalkGame({ setId, uid, childId, practice }: SavedTalkGameProps) {
   const [set, setSet] = useState<TalkSet | null>(null);
   const [error, setError] = useState<string>();
 
@@ -70,7 +77,7 @@ function SavedTalkGame({ setId, uid, childId }: SavedTalkGameProps) {
     };
   }, [uid, setId]);
 
-  if (set) return <TalkGame set={set} uid={uid} childId={childId} />;
+  if (set) return <TalkGame set={set} uid={uid} childId={childId} practice={practice} />;
 
   return (
     <View style={styles.denied}>
@@ -89,12 +96,14 @@ function SavedTalkGame({ setId, uid, childId }: SavedTalkGameProps) {
   );
 }
 
-function TalkGame({ set, uid, childId }: { set: TalkSet; uid: string; childId: string }) {
+type TalkGameProps = { set: TalkSet; uid: string; childId: string; practice: Practice };
+
+function TalkGame({ set, uid, childId, practice }: TalkGameProps) {
   const insets = useSafeAreaInsets();
   const listener = useListener();
   const { cancel: cancelListening, listen } = listener;
 
-  const [words, setWords] = useState(() => shuffle(set.words));
+  const [words, setWords] = useState(() => chooseItems(set.words, practice.focusWords));
   const [turn, setTurn] = useState<Turn>({ index: 0, tries: 0, mistakes: 0 });
   const [phase, setPhase] = useState<Phase>('teaching');
   const [bubble, setBubble] = useState('');
@@ -143,7 +152,10 @@ function TalkGame({ set, uid, childId }: { set: TalkSet; uid: string; childId: s
   const goToNextWord = (from: Turn) => {
     if (from.index + 1 >= words.length) {
       // Only finished sessions are saved. The score shows either way.
-      saveSpeechAttempt(uid, childId, set, resultsSoFar.current, startedAt.current).catch(() => setSaveFailed(true));
+      saveSpeechAttempt(uid, childId, set, resultsSoFar.current, startedAt.current, practice.planLink).catch(() =>
+        setSaveFailed(true),
+      );
+      if (practice.planLink) markPlanItemDone(uid, childId, practice.planLink);
       setResults(resultsSoFar.current);
       setPhase('done');
       speak(ALL_DONE_LINE);
@@ -259,7 +271,7 @@ function TalkGame({ set, uid, childId }: { set: TalkSet; uid: string; childId: s
     setSaveFailed(false);
     setTurn({ index: 0, tries: 0, mistakes: 0 });
     setPhase('teaching');
-    setWords(shuffle(set.words));
+    setWords(chooseItems(set.words, practice.focusWords));
   };
 
   const leave = () => (router.canGoBack() ? router.back() : router.replace('/talk'));

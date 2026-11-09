@@ -18,6 +18,7 @@ import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { isRunningInExpoGo } from 'expo';
 
 import { auth, db } from '@/lib/firebase';
+import { forgetThisDevice } from '@/lib/notifications';
 
 export type SignUpDetails = {
   name: string;
@@ -70,6 +71,9 @@ export function hasPassword(user: User) {
 }
 
 export async function logOut() {
+  // Must happen first: removing this phone from the account needs the login.
+  if (auth.currentUser) await forgetThisDevice(auth.currentUser.uid);
+
   // Also leave Google, so the account picker appears next time.
   if (auth.currentUser && usesProvider(auth.currentUser, 'google.com') && canUseGoogleSignIn) {
     const { GoogleSignin } = await import('@react-native-google-signin/google-signin');

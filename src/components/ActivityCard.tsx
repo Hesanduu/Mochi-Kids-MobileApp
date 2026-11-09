@@ -8,18 +8,19 @@ type ActivityCardProps = {
   subtitle: string;
   icon: { ios: SFSymbol; android: AndroidSymbol };
   onPress: () => void;
+  compact?: boolean; // a shorter card, for screens with little room
 };
 
 // A big, friendly card that opens an activity (used on Home and in Activities).
-export function ActivityCard({ title, subtitle, icon, onPress }: ActivityCardProps) {
+export function ActivityCard({ title, subtitle, icon, onPress, compact = false }: ActivityCardProps) {
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={`${title}. ${subtitle}`}
-      style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+      style={({ pressed }) => [styles.card, compact && styles.cardCompact, pressed && styles.cardPressed]}
     >
-      <View style={styles.iconTile}>
+      <View style={[styles.iconTile, compact && styles.iconTileCompact]}>
         <SymbolView name={{ ...icon, web: icon.android }} size={26} tintColor={colors.primary} />
       </View>
       <View style={styles.text}>
@@ -47,6 +48,10 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: colors.sky,
   },
+  cardCompact: {
+    minHeight: 68,
+    padding: 10,
+  },
   cardPressed: {
     backgroundColor: colors.skySoft,
   },
@@ -57,6 +62,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.skySoft,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  iconTileCompact: {
+    width: 44,
+    height: 44,
   },
   text: {
     flex: 1,

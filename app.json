@@ -63,7 +63,13 @@
           "microphonePermission": "Mochi Kids uses the microphone so your child can practise saying words with Mochi."
         }
       ],
-      "expo-asset"
+      "expo-asset",
+      [
+        "expo-notifications",
+        {
+          "color": "#0274BD"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
