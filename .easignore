@@ -53,7 +53,7 @@ CLAUDE.md
 .designs/
 design/
 .vscode/
-
+docs/
 
 # Firebase Admin key for the server: a real secret. Never commit or upload it.
 service-account.json
