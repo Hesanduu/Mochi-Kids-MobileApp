@@ -15,13 +15,19 @@
 
 </div>
 
+<div align="center">
+  <img src="docs/screenshots/Login.png" width="220" />
+  <img src="docs/screenshots/AndroidHome.png" width="220" />
+  <img src="docs/screenshots/Activities.png" width="220" />
+</div>
+
 <br>
-<img src="docs/screenshots/Login.png" width="220" />
-<img src="docs/screenshots/AndroidHome.png" width="220" />
-<img src="docs/screenshots/Activities.png" width="220" />
-<img src="docs/screenshots/MisspellAct.png" width="220" />
-<img src="docs/screenshots/ImageLibrary.png" width="220" />
-<img src="docs/screenshots/MisspellActivityHistory.png" width="220" />
+
+<div align="center">
+  <img src="docs/screenshots/MisspellAct.png" width="220" />
+  <img src="docs/screenshots/ImageLibrary.png" width="220" />
+  <img src="docs/screenshots/MisspellActivityHistory.png" width="220" />
+</div>
 
 <br>
 
